@@ -40,7 +40,7 @@ export function EventForm({
       notes: String(formData.get("notes") ?? "").trim() || null,
       is_surprise: formData.get("is_surprise") === "on",
       repeats_yearly: formData.get("repeats_yearly") === "on",
-      is_shared: formData.get("is_shared") === "on",
+      is_shared: true,
     }
 
     setPending(true)
@@ -151,15 +151,6 @@ export function EventForm({
           className={fieldClass}
         />
       </div>
-      <label className="flex items-center gap-2 text-sm">
-        <input
-          type="checkbox"
-          name="is_shared"
-          className={checkboxClass}
-          defaultChecked={event?.is_shared ?? true}
-        />
-        Compartilhado com o casal
-      </label>
       <label className="flex items-center gap-2 text-sm">
         <input
           type="checkbox"

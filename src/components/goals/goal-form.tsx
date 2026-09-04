@@ -4,7 +4,7 @@ import { useState } from "react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
-import { checkboxClass, fieldClass } from "@/components/finance/fields"
+import { fieldClass } from "@/components/finance/fields"
 import { parseMoneyInput } from "@/lib/finance/format"
 import { createGoal, updateGoal } from "@/lib/goals/actions"
 import {
@@ -44,7 +44,7 @@ export function GoalForm({
       color: String(formData.get("color") ?? GOAL_COLORS[0]),
       monthly_plan: Number.isFinite(monthly) && monthly > 0 ? monthly : 0,
       notes: String(formData.get("notes") ?? "").trim() || null,
-      is_shared: formData.get("is_shared") === "on",
+      is_shared: true,
     }
     const result = goal
       ? await updateGoal(goal.id, payload)
@@ -181,15 +181,6 @@ export function GoalForm({
           className={fieldClass}
         />
       </div>
-      <label className="flex items-center gap-2 text-sm">
-        <input
-          type="checkbox"
-          name="is_shared"
-          className={checkboxClass}
-          defaultChecked={goal?.is_shared ?? true}
-        />
-        Sonho de vocês dois
-      </label>
       <Button type="submit" className="h-11 w-full rounded-xl" disabled={pending}>
         {pending ? "Salvando..." : goal ? "Salvar alterações" : "Guardar sonho"}
       </Button>

@@ -48,6 +48,7 @@ export async function createGoal(input: z.infer<typeof goalSchema>) {
   const { error } = await supabase.from("goals").insert({
     ...parsed.data,
     target_date: parsed.data.target_date || null,
+    is_shared: true,
     status: "active",
     owner_id: user.id,
   })
@@ -70,6 +71,7 @@ export async function updateGoal(
     .update({
       ...parsed.data,
       target_date: parsed.data.target_date || null,
+      is_shared: true,
     })
     .eq("id", goalId)
   if (error) return { error: dbError(error.message) }
@@ -122,7 +124,7 @@ export async function addGoalContribution(
     contributed_on: parsed.data.contributed_on,
     notes: parsed.data.notes,
     owner_id: user.id,
-    is_shared: goal.is_shared,
+    is_shared: true,
   })
   if (error) return { error: dbError(error.message) }
   refreshGoals()

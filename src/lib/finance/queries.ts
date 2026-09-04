@@ -164,6 +164,23 @@ async function ensureProfile(supabase: ServerClient, user: User) {
   })
 }
 
+async function ensureHouseholdSharing(supabase: ServerClient, userId: string) {
+  await Promise.all([
+    supabase.from("accounts").update({ is_shared: true }).eq("owner_id", userId).eq("is_shared", false),
+    supabase.from("categories").update({ is_shared: true }).eq("owner_id", userId).eq("is_shared", false),
+    supabase.from("transactions").update({ is_shared: true }).eq("owner_id", userId).eq("is_shared", false),
+    supabase.from("budgets").update({ is_shared: true }).eq("owner_id", userId).eq("is_shared", false),
+    supabase.from("bills").update({ is_shared: true }).eq("owner_id", userId).eq("is_shared", false),
+    supabase.from("goals").update({ is_shared: true }).eq("owner_id", userId).eq("is_shared", false),
+    supabase.from("goal_contributions").update({ is_shared: true }).eq("owner_id", userId).eq("is_shared", false),
+    supabase.from("trips").update({ is_shared: true }).eq("owner_id", userId).eq("is_shared", false),
+    supabase.from("trip_budget_items").update({ is_shared: true }).eq("owner_id", userId).eq("is_shared", false),
+    supabase.from("trip_checklist").update({ is_shared: true }).eq("owner_id", userId).eq("is_shared", false),
+    supabase.from("trip_itinerary").update({ is_shared: true }).eq("owner_id", userId).eq("is_shared", false),
+    supabase.from("events").update({ is_shared: true }).eq("owner_id", userId).eq("is_shared", false),
+  ])
+}
+
 async function ensureDefaultCategories(supabase: ServerClient, userId: string) {
   const { data, error } = await supabase.from("categories").select("id").limit(1)
   if (error || (data && data.length > 0)) return
@@ -206,6 +223,7 @@ export const getFinanceBootstrap = cache(async (): Promise<FinanceBootstrap> => 
 
   await Promise.all([
     ensureProfile(supabase, user),
+    ensureHouseholdSharing(supabase, user.id),
     ensureDefaultCategories(supabase, user.id),
   ])
 

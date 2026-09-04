@@ -4,7 +4,7 @@ import { useState } from "react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
-import { checkboxClass, fieldClass } from "@/components/finance/fields"
+import { fieldClass } from "@/components/finance/fields"
 import { createCategory } from "@/lib/finance/actions"
 
 const COLORS = ["#c4785a", "#5c8a6a", "#c46b84", "#5b7c99", "#c4a35a", "#8a7e72"]
@@ -18,7 +18,7 @@ export function CategoryForm({ onCreated }: { onCreated?: () => void }) {
       name: String(formData.get("name") ?? ""),
       kind: String(formData.get("kind") ?? "expense") as "income" | "expense",
       color: String(formData.get("color") ?? COLORS[0]),
-      is_shared: formData.get("is_shared") === "on",
+      is_shared: true,
     })
     setPending(false)
 
@@ -54,10 +54,6 @@ export function CategoryForm({ onCreated }: { onCreated?: () => void }) {
           className="h-11 w-full rounded-xl border border-input bg-transparent p-1"
         />
       </div>
-      <label className="flex items-center gap-2 text-sm">
-        <input type="checkbox" name="is_shared" className={checkboxClass} defaultChecked />
-        Compartilhada com o casal
-      </label>
       <Button type="submit" className="h-11 w-full rounded-xl" disabled={pending}>
         {pending ? "Salvando..." : "Salvar categoria"}
       </Button>

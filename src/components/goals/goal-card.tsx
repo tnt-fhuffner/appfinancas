@@ -61,7 +61,6 @@ export function GoalCard({ item }: { item: GoalProgress }) {
             />
             {kindLabel}
             {priorityLabel ? ` · prioridade ${priorityLabel.toLowerCase()}` : ""}
-            {goal.is_shared ? "" : " · pessoal"}
           </p>
           <h3 className="mt-1 font-heading text-xl tracking-tight">{goal.name}</h3>
         </div>

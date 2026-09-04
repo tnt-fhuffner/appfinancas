@@ -28,11 +28,9 @@ import {
   monthBounds,
 } from "@/lib/finance/format"
 import {
-  balanceByOwner,
   monthExpensesByCategory,
   monthTotals,
   monthlyBalanceSeries,
-  sharedBalance,
   totalBalance,
 } from "@/lib/finance/balances"
 import { getFinanceBootstrap } from "@/lib/finance/queries"
@@ -64,10 +62,6 @@ export default async function HomePage() {
   const pie = monthExpensesByCategory(finance.transactions, start, end)
   const totals = monthTotals(finance.transactions, start, end)
   const coupleTotal = totalBalance(finance.accounts, finance.transactions)
-  const joint = sharedBalance(finance.accounts, finance.transactions)
-  const personal = user
-    ? balanceByOwner(finance.accounts, finance.transactions, user.id)
-    : 0
   const months = Array.from({ length: 12 }, (_, index) => {
     const iso = addMonthsISO(start, index - 11)
     const bounds = monthBounds(iso)
@@ -139,11 +133,7 @@ export default async function HomePage() {
       </section>
 
       <section className="grid gap-3 sm:grid-cols-2">
-        <CoupleBalanceCard
-          coupleTotal={coupleTotal}
-          joint={joint}
-          personal={personal}
-        />
+        <CoupleBalanceCard coupleTotal={coupleTotal} />
         <Card className="border-none bg-card/90 shadow-none ring-foreground/8">
           <CardHeader>
             <span className="mb-2 flex size-10 items-center justify-center rounded-2xl bg-primary/10 text-primary">

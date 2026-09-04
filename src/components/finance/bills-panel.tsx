@@ -12,7 +12,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
-import { checkboxClass, fieldClass } from "@/components/finance/fields"
+import { fieldClass } from "@/components/finance/fields"
 import { createBill, deleteBill, payBill } from "@/lib/finance/actions"
 import { formatBRL, formatDay, parseMoneyInput, todayISO } from "@/lib/finance/format"
 import type { Bill, FinanceBootstrap } from "@/lib/finance/types"
@@ -206,7 +206,7 @@ function BillForm({
         ? String(formData.get("category_id"))
         : null,
       account_id: String(formData.get("account_id") ?? "") || null,
-      is_shared: formData.get("is_shared") === "on",
+      is_shared: true,
       notes: String(formData.get("notes") ?? "").trim() || null,
     })
     setPending(false)
@@ -310,10 +310,6 @@ function BillForm({
         <Label htmlFor="bill-notes">Notas</Label>
         <input id="bill-notes" name="notes" className={fieldClass} placeholder="Opcional" />
       </div>
-      <label className="flex items-center gap-2 text-sm">
-        <input type="checkbox" name="is_shared" className={checkboxClass} defaultChecked />
-        Compartilhado com o casal
-      </label>
       <Button type="submit" className="h-11 w-full rounded-xl" disabled={pending}>
         {pending ? "Salvando..." : "Salvar conta"}
       </Button>

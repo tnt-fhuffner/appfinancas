@@ -248,7 +248,6 @@ function EventRow({
             {kind} · {reminderLabel(occurrenceOn)}
             {hidden ? " · surpresa escondida" : ""}
             {event.is_surprise && !hidden ? " · surpresa" : ""}
-            {event.is_shared ? "" : " · só você"}
           </p>
           <p className="mt-1 font-medium">{event.title}</p>
           <p className="mt-1 text-xs text-muted-foreground">

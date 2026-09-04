@@ -56,6 +56,7 @@ export async function createAccount(input: z.infer<typeof accountSchema>) {
   const { supabase, user } = await requireUser()
   const { error } = await supabase.from("accounts").insert({
     ...parsed.data,
+    is_shared: true,
     owner_id: user.id,
   })
   if (error) return { error: dbError(error.message) }
@@ -69,6 +70,7 @@ export async function createCategory(input: z.infer<typeof categorySchema>) {
   const { supabase, user } = await requireUser()
   const { error } = await supabase.from("categories").insert({
     ...parsed.data,
+    is_shared: true,
     owner_id: user.id,
   })
   if (error) return { error: dbError(error.message) }
@@ -98,17 +100,6 @@ export async function createTransaction(
   }
 
   const { supabase, user } = await requireUser()
-  const accountIds = [data.account_id, data.transfer_account_id].filter(
-    (id): id is string => Boolean(id)
-  )
-  const { data: relatedAccounts } = await supabase
-    .from("accounts")
-    .select("id, is_shared")
-    .in("id", accountIds)
-  const isShared =
-    data.is_shared ||
-    Boolean(relatedAccounts?.some((account) => account.is_shared))
-
   const { error } = await supabase.from("transactions").insert({
     amount: data.amount,
     type: data.type,
@@ -117,7 +108,7 @@ export async function createTransaction(
       data.type === "transfer" ? data.transfer_account_id : null,
     category_id: data.type === "transfer" ? null : data.category_id,
     occurred_on: data.occurred_on,
-    is_shared: isShared,
+    is_shared: true,
     payment_method: data.payment_method,
     notes: data.notes,
     recurrence: data.recurrence,
@@ -233,6 +224,7 @@ export async function createBill(input: z.infer<typeof billSchema>) {
   const { supabase, user } = await requireUser()
   const { error } = await supabase.from("bills").insert({
     ...parsed.data,
+    is_shared: true,
     status: "pending",
     owner_id: user.id,
   })
@@ -276,7 +268,7 @@ export async function payBill(id: string) {
       category_id: bill.category_id,
       occurred_on: todayISO(),
       owner_id: user.id,
-      is_shared: bill.is_shared,
+      is_shared: true,
       notes: bill.title,
       recurrence: "once",
     })

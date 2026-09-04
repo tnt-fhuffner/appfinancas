@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
-import { checkboxClass, fieldClass } from "@/components/finance/fields"
+import { fieldClass } from "@/components/finance/fields"
 import { parseMoneyInput, todayISO } from "@/lib/finance/format"
 import { createTrip, updateTrip } from "@/lib/trips/actions"
 import { TRIP_STATUSES, type Trip } from "@/lib/trips/types"
@@ -29,7 +29,7 @@ export function TripForm({
       planned_amount: Number.isFinite(planned) && planned > 0 ? planned : 0,
       status: String(formData.get("status") ?? "planning") as Trip["status"],
       notes: String(formData.get("notes") ?? "").trim() || null,
-      is_shared: formData.get("is_shared") === "on",
+      is_shared: true,
     }
 
     setPending(true)
@@ -135,15 +135,6 @@ export function TripForm({
           className={fieldClass}
         />
       </div>
-      <label className="flex items-center gap-2 text-sm">
-        <input
-          type="checkbox"
-          name="is_shared"
-          className={checkboxClass}
-          defaultChecked={trip?.is_shared ?? true}
-        />
-        Viagem de vocês dois
-      </label>
       <Button type="submit" className="h-11 w-full rounded-xl" disabled={pending}>
         {pending ? "Salvando..." : trip ? "Salvar alterações" : "Criar viagem"}
       </Button>

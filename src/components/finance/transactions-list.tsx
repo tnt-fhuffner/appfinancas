@@ -81,7 +81,6 @@ export function TransactionsList({
               <p className="truncate text-xs text-muted-foreground">
                 {firstName} · {formatDay(transaction.occurred_on)} ·{" "}
                 {transaction.account?.name}
-                {transaction.is_shared ? "" : " · pessoal"}
               </p>
             </div>
             <div className="text-right">

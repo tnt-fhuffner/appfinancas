@@ -38,6 +38,7 @@ export async function createEvent(input: z.infer<typeof eventSchema>) {
   const { supabase, user } = await requireUser()
   const { error } = await supabase.from("events").insert({
     ...parsed.data,
+    is_shared: true,
     owner_id: user.id,
   })
   if (error) return { error: dbError(error.message) }
@@ -56,7 +57,7 @@ export async function updateEvent(
   const { supabase } = await requireUser()
   const { error } = await supabase
     .from("events")
-    .update(parsed.data)
+    .update({ ...parsed.data, is_shared: true })
     .eq("id", eventId)
   if (error) return { error: dbError(error.message) }
   refreshEvents()

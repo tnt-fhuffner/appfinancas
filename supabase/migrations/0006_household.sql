@@ -24,6 +24,27 @@ begin
   if to_regclass('public.bills') is not null then
     update public.bills set is_shared = true where is_shared = false;
   end if;
+  if to_regclass('public.goals') is not null then
+    update public.goals set is_shared = true where is_shared = false;
+  end if;
+  if to_regclass('public.goal_contributions') is not null then
+    update public.goal_contributions set is_shared = true where is_shared = false;
+  end if;
+  if to_regclass('public.trips') is not null then
+    update public.trips set is_shared = true where is_shared = false;
+  end if;
+  if to_regclass('public.trip_budget_items') is not null then
+    update public.trip_budget_items set is_shared = true where is_shared = false;
+  end if;
+  if to_regclass('public.trip_checklist') is not null then
+    update public.trip_checklist set is_shared = true where is_shared = false;
+  end if;
+  if to_regclass('public.trip_itinerary') is not null then
+    update public.trip_itinerary set is_shared = true where is_shared = false;
+  end if;
+  if to_regclass('public.events') is not null then
+    update public.events set is_shared = true where is_shared = false;
+  end if;
 end $$;
 
 create table if not exists public.app_meta (

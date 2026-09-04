@@ -4,7 +4,7 @@ import { useState } from "react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
-import { checkboxClass, fieldClass } from "@/components/finance/fields"
+import { fieldClass } from "@/components/finance/fields"
 import { createAccount } from "@/lib/finance/actions"
 import { ACCOUNT_TYPES } from "@/lib/finance/types"
 import { parseMoneyInput } from "@/lib/finance/format"
@@ -18,7 +18,7 @@ export function AccountForm({ onCreated }: { onCreated?: () => void }) {
     const result = await createAccount({
       name: String(formData.get("name") ?? ""),
       type: String(formData.get("type") ?? "checking") as (typeof ACCOUNT_TYPES)[number]["value"],
-      is_shared: formData.get("is_shared") === "on",
+      is_shared: true,
       initial_balance: Number.isFinite(amount) ? amount : 0,
     })
     setPending(false)
@@ -65,10 +65,6 @@ export function AccountForm({ onCreated }: { onCreated?: () => void }) {
           className={fieldClass}
         />
       </div>
-      <label className="flex items-center gap-2 text-sm">
-        <input type="checkbox" name="is_shared" className={checkboxClass} defaultChecked />
-        Conta conjunta
-      </label>
       <Button type="submit" className="h-11 w-full rounded-xl" disabled={pending}>
         {pending ? "Salvando..." : "Salvar conta"}
       </Button>

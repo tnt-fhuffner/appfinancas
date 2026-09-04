@@ -40,11 +40,9 @@ import {
 } from "@/lib/finance/alerts"
 import {
   accountBalance,
-  balanceByOwner,
   monthExpensesByCategory,
   monthTotals,
   monthlyBalanceSeries,
-  sharedBalance,
   totalBalance,
 } from "@/lib/finance/balances"
 import { ACCOUNT_TYPES } from "@/lib/finance/types"
@@ -90,12 +88,6 @@ export function FinanceWorkspace({
   const pie = monthExpensesByCategory(data.transactions, start, end)
   const totals = monthTotals(data.transactions, start, end)
   const coupleTotal = totalBalance(data.accounts, data.transactions)
-  const joint = sharedBalance(data.accounts, data.transactions)
-  const personal = balanceByOwner(
-    data.accounts,
-    data.transactions,
-    data.userId
-  )
   const months = Array.from({ length: 12 }, (_, index) => {
     const iso = addMonthsISO(start, index - 11)
     const bounds = monthBounds(iso)
@@ -165,11 +157,7 @@ export function FinanceWorkspace({
       {tab === "visao" ? (
         <div className="grid gap-4 md:grid-cols-2">
           <div className="md:col-span-2">
-            <CoupleBalanceCard
-              coupleTotal={coupleTotal}
-              joint={joint}
-              personal={personal}
-            />
+            <CoupleBalanceCard coupleTotal={coupleTotal} />
           </div>
           <Card className="border-none bg-card/90 shadow-none ring-foreground/8 md:col-span-2">
             <CardHeader>
@@ -301,7 +289,11 @@ export function FinanceWorkspace({
                 >
                   <p className="text-sm text-muted-foreground">
                     {ACCOUNT_TYPES.find((item) => item.value === account.type)?.label}
-                    {account.is_shared ? " · conjunta" : " · pessoal"}
+                    {(() => {
+                      const owner = data.profiles.find((profile) => profile.id === account.owner_id)
+                      const firstName = owner?.full_name?.trim().split(/\s+/)[0]
+                      return firstName ? ` · ${firstName}` : ""
+                    })()}
                   </p>
                   <p className="mt-1 font-heading text-xl">{account.name}</p>
                   <p className="mt-2 text-lg font-medium">

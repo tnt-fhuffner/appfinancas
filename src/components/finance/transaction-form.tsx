@@ -4,7 +4,7 @@ import { useMemo, useState } from "react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
-import { checkboxClass, fieldClass } from "@/components/finance/fields"
+import { fieldClass } from "@/components/finance/fields"
 import { createTransaction } from "@/lib/finance/actions"
 import { parseMoneyInput, todayISO } from "@/lib/finance/format"
 import type { Account, Category, TransactionType } from "@/lib/finance/types"
@@ -53,7 +53,7 @@ export function TransactionForm({
         ? String(formData.get("category_id"))
         : null,
       occurred_on: String(formData.get("occurred_on") ?? todayISO()),
-      is_shared: formData.get("is_shared") === "on",
+      is_shared: true,
       payment_method: formData.get("payment_method")
         ? String(formData.get("payment_method"))
         : null,
@@ -186,11 +186,6 @@ export function TransactionForm({
           <input id="notes" name="notes" className={fieldClass} placeholder="Opcional" />
         </div>
       ) : null}
-
-      <label className="flex items-center gap-2 text-sm">
-        <input type="checkbox" name="is_shared" className={checkboxClass} defaultChecked />
-        Compartilhado com o casal
-      </label>
 
       <Button type="submit" className="h-11 w-full rounded-xl" disabled={pending}>
         {pending ? "Salvando..." : compact ? "Lançar agora" : "Salvar lançamento"}

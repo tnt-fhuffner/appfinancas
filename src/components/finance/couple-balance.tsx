@@ -7,27 +7,15 @@ import {
 } from "@/components/ui/card"
 import { formatBRL } from "@/lib/finance/format"
 
-export function CoupleBalanceCard({
-  coupleTotal,
-  joint,
-  personal,
-}: {
-  coupleTotal: number
-  joint: number
-  personal: number
-}) {
+export function CoupleBalanceCard({ coupleTotal }: { coupleTotal: number }) {
   return (
     <Card className="border-none bg-card/90 shadow-none ring-foreground/8">
       <CardHeader>
         <CardTitle>Saldo conjunto</CardTitle>
-        <CardDescription>As contas dos dois, somadas</CardDescription>
+        <CardDescription>Tudo de vocês dois, somado</CardDescription>
       </CardHeader>
       <CardContent>
         <p className="font-heading text-3xl">{formatBRL(coupleTotal)}</p>
-        <p className="mt-2 text-sm text-muted-foreground">
-          Contas conjuntas {formatBRL(joint)}
-          {personal !== 0 ? ` · pessoal ${formatBRL(personal)}` : ""}
-        </p>
       </CardContent>
     </Card>
   )

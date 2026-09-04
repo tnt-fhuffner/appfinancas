@@ -48,6 +48,7 @@ export async function createTrip(input: z.infer<typeof tripSchema>) {
     .from("trips")
     .insert({
       ...parsed.data,
+      is_shared: true,
       owner_id: user.id,
     })
     .select("id")
@@ -62,7 +63,7 @@ export async function createTrip(input: z.infer<typeof tripSchema>) {
         kind: kind.value,
         planned_amount: 0,
         owner_id: user.id,
-        is_shared: parsed.data.is_shared,
+        is_shared: true,
       }))
     ),
     supabase.from("trip_checklist").insert(
@@ -72,7 +73,7 @@ export async function createTrip(input: z.infer<typeof tripSchema>) {
         done: false,
         sort_order: index,
         owner_id: user.id,
-        is_shared: parsed.data.is_shared,
+        is_shared: true,
       }))
     ),
   ])
@@ -93,7 +94,10 @@ export async function updateTrip(
     return { error: "A volta não pode ser antes da ida." }
   }
   const { supabase } = await requireUser()
-  const { error } = await supabase.from("trips").update(parsed.data).eq("id", tripId)
+  const { error } = await supabase
+    .from("trips")
+    .update({ ...parsed.data, is_shared: true })
+    .eq("id", tripId)
   if (error) return { error: dbError(error.message) }
   refreshTrips(tripId)
   return { error: null }
@@ -162,7 +166,7 @@ export async function addChecklistItem(tripId: string, title: string) {
     done: false,
     sort_order: 99,
     owner_id: user.id,
-    is_shared: trip?.is_shared ?? true,
+    is_shared: true,
   })
   if (error) return { error: dbError(error.message) }
   refreshTrips(id)
@@ -221,7 +225,7 @@ export async function addItineraryItem(input: {
   const { error } = await supabase.from("trip_itinerary").insert({
     ...parsed.data,
     owner_id: user.id,
-    is_shared: trip?.is_shared ?? true,
+    is_shared: true,
   })
   if (error) return { error: dbError(error.message) }
   refreshTrips(parsed.data.trip_id)
@@ -284,7 +288,7 @@ export async function addTripExpense(input: {
     category_id: travelCategory?.id ?? null,
     occurred_on: parsed.data.occurred_on,
     owner_id: user.id,
-    is_shared: trip.is_shared,
+    is_shared: true,
     notes: parsed.data.notes || `Viagem: ${trip.destination}`,
     recurrence: "once",
     trip_id: parsed.data.trip_id,
