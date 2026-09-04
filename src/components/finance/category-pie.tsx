@@ -19,7 +19,7 @@ export function CategoryPie({
   if (data.length === 0) {
     return (
       <p className="py-8 text-center text-sm text-muted-foreground">
-        Ainda não há despesas neste mês.
+        Ainda não há despesas neste período.
       </p>
     )
   }

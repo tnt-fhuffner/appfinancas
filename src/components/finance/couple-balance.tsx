@@ -25,16 +25,18 @@ export function MonthMetrics({
   income,
   expense,
   net,
+  netLabel = "Saldo do mês",
 }: {
   income: number
   expense: number
   net: number
+  netLabel?: string
 }) {
   return (
     <div className="grid gap-3 sm:grid-cols-3">
       <Metric label="Receitas" value={formatBRL(income)} />
       <Metric label="Despesas" value={formatBRL(expense)} />
-      <Metric label="Saldo do mês" value={formatBRL(net)} />
+      <Metric label={netLabel} value={formatBRL(net)} />
     </div>
   )
 }

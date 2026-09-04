@@ -7,7 +7,6 @@ import { Button } from "@/components/ui/button"
 import {
   Card,
   CardContent,
-  CardDescription,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
@@ -19,40 +18,19 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog"
 import { AccountForm } from "@/components/finance/account-form"
-import { AlertsList } from "@/components/finance/alerts-list"
 import { BillsPanel } from "@/components/finance/bills-panel"
 import { BudgetPanel } from "@/components/finance/budget-panel"
 import { CategoryForm } from "@/components/finance/category-form"
-import {
-  CoupleBalanceCard,
-  MonthMetrics,
-} from "@/components/finance/couple-balance"
-import { BalanceLine, CategoryPie } from "@/components/finance/lazy-charts"
+import { HouseholdDashboard } from "@/components/finance/household-dashboard"
+import { PeriodFilter } from "@/components/finance/period-filter"
 import { SetupBanner } from "@/components/finance/setup-banner"
 import { TransactionForm } from "@/components/finance/transaction-form"
 import { TransactionsList } from "@/components/finance/transactions-list"
+import { usePeriod } from "@/components/finance/use-period"
 import { archiveAccount, deleteCategory } from "@/lib/finance/actions"
-import {
-  budgetRows,
-  buildAlerts,
-  healthFromAlerts,
-  projectedMonthEndBalance,
-} from "@/lib/finance/alerts"
-import {
-  accountBalance,
-  monthExpensesByCategory,
-  monthTotals,
-  monthlyBalanceSeries,
-  totalBalance,
-} from "@/lib/finance/balances"
-import { ACCOUNT_TYPES } from "@/lib/finance/types"
-import {
-  addMonthsISO,
-  formatBRL,
-  formatMonthLabel,
-  monthBounds,
-} from "@/lib/finance/format"
-import type { FinanceBootstrap } from "@/lib/finance/types"
+import { accountBalance } from "@/lib/finance/balances"
+import { formatBRL } from "@/lib/finance/format"
+import { ACCOUNT_TYPES, type FinanceBootstrap } from "@/lib/finance/types"
 
 const TABS = [
   { id: "visao", label: "Visão" },
@@ -73,58 +51,16 @@ export function FinanceWorkspace({
   const [tab, setTab] = useState<(typeof TABS)[number]["id"]>(defaultTab)
   const [accountOpen, setAccountOpen] = useState(false)
   const [categoryOpen, setCategoryOpen] = useState(false)
-  const { start, end } = monthBounds()
-  const monthLabel = formatMonthLabel(start)
-
-  const monthTransactions = useMemo(
+  const period = usePeriod()
+  const periodTransactions = useMemo(
     () =>
       data.transactions.filter(
         (transaction) =>
-          transaction.occurred_on >= start && transaction.occurred_on <= end
+          transaction.occurred_on >= period.range.start &&
+          transaction.occurred_on <= period.range.end
       ),
-    [data.transactions, start, end]
+    [data.transactions, period.range.start, period.range.end]
   )
-
-  const pie = monthExpensesByCategory(data.transactions, start, end)
-  const totals = monthTotals(data.transactions, start, end)
-  const coupleTotal = totalBalance(data.accounts, data.transactions)
-  const months = Array.from({ length: 12 }, (_, index) => {
-    const iso = addMonthsISO(start, index - 11)
-    const bounds = monthBounds(iso)
-    return {
-      start: bounds.start,
-      end: bounds.end,
-      label: new Intl.DateTimeFormat("pt-BR", { month: "short" }).format(
-        new Date(bounds.year, bounds.month - 1, 1)
-      ),
-    }
-  })
-  const series = monthlyBalanceSeries(data.accounts, data.transactions, months)
-  const rows = budgetRows(
-    data.categories,
-    data.budgets,
-    data.transactions,
-    start,
-    end
-  )
-  const projected = projectedMonthEndBalance(
-    data.accounts,
-    data.transactions,
-    data.bills,
-    start,
-    end
-  )
-  const alerts = data.alertsReady ? buildAlerts(rows, data.bills, projected) : []
-  const health = data.alertsReady
-    ? healthFromAlerts(
-        alerts,
-        data.budgets.some((budget) => budget.planned_amount > 0)
-      )
-    : {
-        level: "yellow" as const,
-        color: "bg-amber-400",
-        label: "Rode o SQL de orçamento para o semáforo ficar preciso",
-      }
 
   return (
     <div className="mx-auto flex w-full max-w-5xl flex-col gap-6">
@@ -154,61 +90,29 @@ export function FinanceWorkspace({
         ))}
       </div>
 
+      {tab === "visao" || tab === "lancamentos" ? (
+        <PeriodFilter
+          preset={period.preset}
+          customStart={period.customStart}
+          customEnd={period.customEnd}
+          onPreset={period.setPreset}
+          onCustomStart={period.setCustomStart}
+          onCustomEnd={period.setCustomEnd}
+        />
+      ) : null}
+
       {tab === "visao" ? (
-        <div className="grid gap-4 md:grid-cols-2">
-          <div className="md:col-span-2">
-            <CoupleBalanceCard coupleTotal={coupleTotal} />
-          </div>
-          <Card className="border-none bg-card/90 shadow-none ring-foreground/8 md:col-span-2">
-            <CardHeader>
-              <CardTitle>Este mês</CardTitle>
-              <CardDescription className="capitalize">{monthLabel}</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <MonthMetrics
-                income={totals.income}
-                expense={totals.expense}
-                net={totals.net}
-              />
-            </CardContent>
-          </Card>
-          <Card className="border-none bg-card/90 shadow-none ring-foreground/8 md:col-span-2">
-            <CardHeader>
-              <CardTitle>Saúde e alertas</CardTitle>
-              <CardDescription>Semáforo do mês e contas que vencem</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <AlertsList alerts={alerts} health={health} projected={projected} />
-            </CardContent>
-          </Card>
-          <Card className="border-none bg-card/90 shadow-none ring-foreground/8">
-            <CardHeader>
-              <CardTitle>Gastos por categoria</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <CategoryPie data={pie} />
-            </CardContent>
-          </Card>
-          <Card className="border-none bg-card/90 shadow-none ring-foreground/8">
-            <CardHeader>
-              <CardTitle>Evolução do saldo</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <BalanceLine data={series} />
-            </CardContent>
-          </Card>
-          <Card className="border-none bg-card/90 shadow-none ring-foreground/8 md:col-span-2">
-            <CardHeader>
-              <CardTitle>Últimos lançamentos</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <TransactionsList
-                transactions={monthTransactions.slice(0, 6)}
-                profiles={data.profiles}
-              />
-            </CardContent>
-          </Card>
-        </div>
+        <HouseholdDashboard
+          data={data}
+          range={period.range}
+          preset={period.preset}
+          customStart={period.customStart}
+          customEnd={period.customEnd}
+          onPreset={period.setPreset}
+          onCustomStart={period.setCustomStart}
+          onCustomEnd={period.setCustomEnd}
+          showFilter={false}
+        />
       ) : null}
 
       {tab === "lancamentos" ? (
@@ -225,9 +129,9 @@ export function FinanceWorkspace({
             </CardContent>
           </Card>
           <div>
-            <h3 className="mb-3 font-heading text-lg">Histórico</h3>
+            <h3 className="mb-3 font-heading text-lg">Histórico do período</h3>
             <TransactionsList
-              transactions={data.transactions}
+              transactions={periodTransactions}
               profiles={data.profiles}
             />
           </div>
