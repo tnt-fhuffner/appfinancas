@@ -1,36 +1,52 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Nós
 
-## Getting Started
+App privado de finanças e planejamento do casal. Sem cadastro público: só vocês dois.
 
-First, run the development server:
+## Fase 1 (pronta)
+
+- Next.js (App Router) + TypeScript
+- Tailwind CSS + shadcn/ui
+- Clientes Supabase (browser, server e proxy de sessão)
+- Login por e-mail/senha, sem tela de cadastro
+- Layout com navegação entre Início, Finanças, Metas, Viagens, Eventos e Configurações
+- Dark mode
+
+## Setup
+
+1. Crie um projeto no [Supabase](https://supabase.com).
+2. Em **Authentication → Providers → Email**, desative o cadastro público (*Allow new users to sign up*).
+3. Crie **duas contas** em **Authentication → Users**.
+4. Copie `.env.example` para `.env.local` e preencha:
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+NEXT_PUBLIC_SUPABASE_URL=https://xxxx.supabase.co
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=...
+ALLOWED_EMAILS=voce@email.com,esposa@email.com
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+A chave pública aparece no painel como *publishable* ou *anon*.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+5. Instale e rode:
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+npm install
+npm run dev
+```
 
-## Learn More
+Abra [http://localhost:3000](http://localhost:3000). Sem sessão, o app redireciona para `/login`.
 
-To learn more about Next.js, take a look at the following resources:
+## Segurança
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+- Não existe rota de signup no app.
+- O proxy protege todas as páginas, exceto `/login` e `/auth/callback`.
+- `ALLOWED_EMAILS` é uma trava extra: mesmo que alguém crie um usuário no Auth, o login é recusado se o e-mail não estiver na lista.
+- Sem `ALLOWED_EMAILS`, ninguém entra (lista fechada).
+- As migrations em `supabase/migrations` ativam RLS em todas as tabelas.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Scripts
 
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- `npm run dev` — desenvolvimento
+- `npm run build` — build de produção
+- `npm run start` — servidor de produção
+- `npm run lint` — ESLint
+# appfinancas
