@@ -1,4 +1,4 @@
-import { Heart, Wallet } from "lucide-react"
+import { Heart } from "lucide-react"
 import {
   Card,
   CardContent,
@@ -7,6 +7,7 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import { AlertsList } from "@/components/finance/alerts-list"
+import { CoupleBalanceCard } from "@/components/finance/couple-balance"
 import { BalanceLine, CategoryPie } from "@/components/finance/lazy-charts"
 import { SetupBanner } from "@/components/finance/setup-banner"
 import { TransactionsList } from "@/components/finance/transactions-list"
@@ -27,6 +28,7 @@ import {
   monthBounds,
 } from "@/lib/finance/format"
 import {
+  balanceByOwner,
   monthExpensesByCategory,
   monthTotals,
   monthlyBalanceSeries,
@@ -63,6 +65,9 @@ export default async function HomePage() {
   const totals = monthTotals(finance.transactions, start, end)
   const coupleTotal = totalBalance(finance.accounts, finance.transactions)
   const joint = sharedBalance(finance.accounts, finance.transactions)
+  const personal = user
+    ? balanceByOwner(finance.accounts, finance.transactions, user.id)
+    : 0
   const months = Array.from({ length: 12 }, (_, index) => {
     const iso = addMonthsISO(start, index - 11)
     const bounds = monthBounds(iso)
@@ -115,6 +120,14 @@ export default async function HomePage() {
       {!finance.alertsReady ? (
         <SetupBanner sql={finance.schemaSqlPhase3} compact />
       ) : null}
+      {!finance.householdReady ? (
+        <SetupBanner
+          sql={finance.schemaSqlHousehold}
+          compact
+          title="Painéis ainda não estão conjuntos"
+          description="Rode este SQL no Supabase para vocês dois verem as mesmas contas, gastos e o saldo conjunto. Depois recarregue."
+        />
+      ) : null}
       <section className="space-y-2">
         <p className="text-sm font-medium text-primary">{greeting}</p>
         <h2 className="font-heading text-3xl tracking-tight text-pretty md:text-4xl">
@@ -126,21 +139,11 @@ export default async function HomePage() {
       </section>
 
       <section className="grid gap-3 sm:grid-cols-2">
-        <Card className="border-none bg-card/90 shadow-none ring-foreground/8">
-          <CardHeader>
-            <span className="mb-2 flex size-10 items-center justify-center rounded-2xl bg-primary/10 text-primary">
-              <Wallet className="size-5" />
-            </span>
-            <CardTitle>Saldo do casal</CardTitle>
-            <CardDescription>Todas as contas visíveis para vocês</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <p className="font-heading text-3xl">{formatBRL(coupleTotal)}</p>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Conjunto: {formatBRL(joint)}
-            </p>
-          </CardContent>
-        </Card>
+        <CoupleBalanceCard
+          coupleTotal={coupleTotal}
+          joint={joint}
+          personal={personal}
+        />
         <Card className="border-none bg-card/90 shadow-none ring-foreground/8">
           <CardHeader>
             <span className="mb-2 flex size-10 items-center justify-center rounded-2xl bg-primary/10 text-primary">

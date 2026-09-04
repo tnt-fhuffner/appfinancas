@@ -23,7 +23,11 @@ import { AlertsList } from "@/components/finance/alerts-list"
 import { BillsPanel } from "@/components/finance/bills-panel"
 import { BudgetPanel } from "@/components/finance/budget-panel"
 import { CategoryForm } from "@/components/finance/category-form"
-import { CategoryPie } from "@/components/finance/lazy-charts"
+import {
+  CoupleBalanceCard,
+  MonthMetrics,
+} from "@/components/finance/couple-balance"
+import { BalanceLine, CategoryPie } from "@/components/finance/lazy-charts"
 import { SetupBanner } from "@/components/finance/setup-banner"
 import { TransactionForm } from "@/components/finance/transaction-form"
 import { TransactionsList } from "@/components/finance/transactions-list"
@@ -36,11 +40,20 @@ import {
 } from "@/lib/finance/alerts"
 import {
   accountBalance,
+  balanceByOwner,
   monthExpensesByCategory,
   monthTotals,
+  monthlyBalanceSeries,
+  sharedBalance,
+  totalBalance,
 } from "@/lib/finance/balances"
 import { ACCOUNT_TYPES } from "@/lib/finance/types"
-import { formatBRL, formatMonthLabel, monthBounds } from "@/lib/finance/format"
+import {
+  addMonthsISO,
+  formatBRL,
+  formatMonthLabel,
+  monthBounds,
+} from "@/lib/finance/format"
 import type { FinanceBootstrap } from "@/lib/finance/types"
 
 const TABS = [
@@ -76,6 +89,25 @@ export function FinanceWorkspace({
 
   const pie = monthExpensesByCategory(data.transactions, start, end)
   const totals = monthTotals(data.transactions, start, end)
+  const coupleTotal = totalBalance(data.accounts, data.transactions)
+  const joint = sharedBalance(data.accounts, data.transactions)
+  const personal = balanceByOwner(
+    data.accounts,
+    data.transactions,
+    data.userId
+  )
+  const months = Array.from({ length: 12 }, (_, index) => {
+    const iso = addMonthsISO(start, index - 11)
+    const bounds = monthBounds(iso)
+    return {
+      start: bounds.start,
+      end: bounds.end,
+      label: new Intl.DateTimeFormat("pt-BR", { month: "short" }).format(
+        new Date(bounds.year, bounds.month - 1, 1)
+      ),
+    }
+  })
+  const series = monthlyBalanceSeries(data.accounts, data.transactions, months)
   const rows = budgetRows(
     data.categories,
     data.budgets,
@@ -105,6 +137,14 @@ export function FinanceWorkspace({
   return (
     <div className="mx-auto flex w-full max-w-5xl flex-col gap-6">
       {!data.alertsReady ? <SetupBanner sql={data.schemaSqlPhase3} compact /> : null}
+      {!data.householdReady ? (
+        <SetupBanner
+          sql={data.schemaSqlHousehold}
+          compact
+          title="Painéis ainda não estão conjuntos"
+          description="Rode este SQL no Supabase para vocês dois verem as mesmas contas, gastos e o saldo conjunto. Depois recarregue."
+        />
+      ) : null}
       <div className="flex gap-1 overflow-x-auto no-scrollbar rounded-2xl bg-muted p-1">
         {TABS.map((item) => (
           <button
@@ -124,15 +164,24 @@ export function FinanceWorkspace({
 
       {tab === "visao" ? (
         <div className="grid gap-4 md:grid-cols-2">
+          <div className="md:col-span-2">
+            <CoupleBalanceCard
+              coupleTotal={coupleTotal}
+              joint={joint}
+              personal={personal}
+            />
+          </div>
           <Card className="border-none bg-card/90 shadow-none ring-foreground/8 md:col-span-2">
             <CardHeader>
               <CardTitle>Este mês</CardTitle>
               <CardDescription className="capitalize">{monthLabel}</CardDescription>
             </CardHeader>
-            <CardContent className="grid gap-3 sm:grid-cols-3">
-              <Metric label="Receitas" value={formatBRL(totals.income)} />
-              <Metric label="Despesas" value={formatBRL(totals.expense)} />
-              <Metric label="Saldo do mês" value={formatBRL(totals.net)} />
+            <CardContent>
+              <MonthMetrics
+                income={totals.income}
+                expense={totals.expense}
+                net={totals.net}
+              />
             </CardContent>
           </Card>
           <Card className="border-none bg-card/90 shadow-none ring-foreground/8 md:col-span-2">
@@ -153,6 +202,14 @@ export function FinanceWorkspace({
             </CardContent>
           </Card>
           <Card className="border-none bg-card/90 shadow-none ring-foreground/8">
+            <CardHeader>
+              <CardTitle>Evolução do saldo</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <BalanceLine data={series} />
+            </CardContent>
+          </Card>
+          <Card className="border-none bg-card/90 shadow-none ring-foreground/8 md:col-span-2">
             <CardHeader>
               <CardTitle>Últimos lançamentos</CardTitle>
             </CardHeader>
@@ -317,15 +374,6 @@ export function FinanceWorkspace({
           </ul>
         </div>
       ) : null}
-    </div>
-  )
-}
-
-function Metric({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-2xl bg-muted/70 px-4 py-3">
-      <p className="text-xs text-muted-foreground">{label}</p>
-      <p className="mt-1 text-lg font-medium">{value}</p>
     </div>
   )
 }

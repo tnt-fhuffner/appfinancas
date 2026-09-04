@@ -1,0 +1,61 @@
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card"
+import { formatBRL } from "@/lib/finance/format"
+
+export function CoupleBalanceCard({
+  coupleTotal,
+  joint,
+  personal,
+}: {
+  coupleTotal: number
+  joint: number
+  personal: number
+}) {
+  return (
+    <Card className="border-none bg-card/90 shadow-none ring-foreground/8">
+      <CardHeader>
+        <CardTitle>Saldo conjunto</CardTitle>
+        <CardDescription>As contas dos dois, somadas</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <p className="font-heading text-3xl">{formatBRL(coupleTotal)}</p>
+        <p className="mt-2 text-sm text-muted-foreground">
+          Contas conjuntas {formatBRL(joint)}
+          {personal !== 0 ? ` · pessoal ${formatBRL(personal)}` : ""}
+        </p>
+      </CardContent>
+    </Card>
+  )
+}
+
+export function MonthMetrics({
+  income,
+  expense,
+  net,
+}: {
+  income: number
+  expense: number
+  net: number
+}) {
+  return (
+    <div className="grid gap-3 sm:grid-cols-3">
+      <Metric label="Receitas" value={formatBRL(income)} />
+      <Metric label="Despesas" value={formatBRL(expense)} />
+      <Metric label="Saldo do mês" value={formatBRL(net)} />
+    </div>
+  )
+}
+
+function Metric({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-2xl bg-muted/70 px-4 py-3">
+      <p className="text-xs text-muted-foreground">{label}</p>
+      <p className="mt-1 text-lg font-medium">{value}</p>
+    </div>
+  )
+}

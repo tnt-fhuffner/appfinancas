@@ -5,7 +5,7 @@ import { readMigration } from "@/lib/migrations"
 import { createClient } from "@/lib/supabase/server"
 import { DEFAULT_CATEGORIES } from "@/lib/finance/defaults"
 import { isMissingTable } from "@/lib/finance/errors"
-import { addMonthsISO, monthBounds, toNumber } from "@/lib/finance/format"
+import { monthBounds, toNumber } from "@/lib/finance/format"
 import { getDisplayName } from "@/lib/auth/user"
 import type {
   Account,
@@ -56,7 +56,7 @@ function mapTransaction(row: Record<string, unknown>): Transaction {
     category_id: (row.category_id as string | null) ?? null,
     account_id: String(row.account_id),
     transfer_account_id: (row.transfer_account_id as string | null) ?? null,
-    occurred_on: String(row.occurred_on),
+    occurred_on: String(row.occurred_on).slice(0, 10),
     owner_id: String(row.owner_id),
     is_shared: Boolean(row.is_shared),
     payment_method: (row.payment_method as string | null) ?? null,
@@ -82,14 +82,20 @@ export async function getPhase3Sql() {
   return readMigration("0002_budgets_bills.sql")
 }
 
+export async function getHouseholdSql() {
+  return readMigration("0006_household.sql")
+}
+
 function emptyBootstrap(
   extra: Partial<FinanceBootstrap> & Pick<FinanceBootstrap, "userId">
 ): FinanceBootstrap {
   return {
     ready: false,
     alertsReady: false,
+    householdReady: true,
     schemaSql: "",
     schemaSqlPhase3: "",
+    schemaSqlHousehold: "",
     accounts: [],
     categories: [],
     profiles: [],
@@ -203,7 +209,6 @@ export const getFinanceBootstrap = cache(async (): Promise<FinanceBootstrap> => 
     ensureDefaultCategories(supabase, user.id),
   ])
 
-  const from = addMonthsISO(monthBounds().start, -11)
   const { start: monthStart } = monthBounds()
 
   const [
@@ -213,6 +218,7 @@ export const getFinanceBootstrap = cache(async (): Promise<FinanceBootstrap> => 
     transactionsRes,
     budgetsRes,
     billsRes,
+    householdRes,
   ] = await Promise.all([
     supabase
       .from("accounts")
@@ -224,7 +230,6 @@ export const getFinanceBootstrap = cache(async (): Promise<FinanceBootstrap> => 
     supabase
       .from("transactions")
       .select("*")
-      .gte("occurred_on", from)
       .order("occurred_on", { ascending: false })
       .order("created_at", { ascending: false })
       .limit(3000),
@@ -234,9 +239,11 @@ export const getFinanceBootstrap = cache(async (): Promise<FinanceBootstrap> => 
       .select("*")
       .order("due_on", { ascending: true })
       .limit(500),
+    supabase.from("app_meta").select("key").eq("key", "household_select").maybeSingle(),
   ])
 
   const alertsReady = !isMissingTable(budgetsRes.error) && !isMissingTable(billsRes.error)
+  const householdReady = !isMissingTable(householdRes.error)
 
   const accounts = (accountsRes.data ?? []).map((row) =>
     mapAccount(row as Record<string, unknown>)
@@ -252,8 +259,10 @@ export const getFinanceBootstrap = cache(async (): Promise<FinanceBootstrap> => 
   return {
     ready: true,
     alertsReady,
+    householdReady,
     schemaSql: "",
     schemaSqlPhase3: alertsReady ? "" : await getPhase3Sql(),
+    schemaSqlHousehold: householdReady ? "" : await getHouseholdSql(),
     userId: user.id,
     accounts,
     categories,

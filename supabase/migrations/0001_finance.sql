@@ -8,8 +8,7 @@ returns boolean
 language sql
 stable
 as $$
-  select auth.uid() is not null
-    and (is_shared = true or owner_id = auth.uid());
+  select auth.uid() is not null;
 $$;
 
 create or replace function public.set_updated_at()
@@ -35,7 +34,7 @@ create table if not exists public.accounts (
   name text not null,
   type text not null check (type in ('checking', 'savings', 'wallet', 'credit_card')),
   owner_id uuid not null references auth.users (id) on delete cascade,
-  is_shared boolean not null default false,
+  is_shared boolean not null default true,
   color text,
   initial_balance numeric(14, 2) not null default 0,
   archived_at timestamptz,

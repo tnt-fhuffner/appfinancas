@@ -98,8 +98,10 @@ export type HealthStatus = {
 export type FinanceBootstrap = {
   ready: boolean
   alertsReady: boolean
+  householdReady: boolean
   schemaSql: string
   schemaSqlPhase3: string
+  schemaSqlHousehold: string
   userId: string
   accounts: Account[]
   categories: Category[]

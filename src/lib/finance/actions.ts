@@ -98,6 +98,17 @@ export async function createTransaction(
   }
 
   const { supabase, user } = await requireUser()
+  const accountIds = [data.account_id, data.transfer_account_id].filter(
+    (id): id is string => Boolean(id)
+  )
+  const { data: relatedAccounts } = await supabase
+    .from("accounts")
+    .select("id, is_shared")
+    .in("id", accountIds)
+  const isShared =
+    data.is_shared ||
+    Boolean(relatedAccounts?.some((account) => account.is_shared))
+
   const { error } = await supabase.from("transactions").insert({
     amount: data.amount,
     type: data.type,
@@ -106,7 +117,7 @@ export async function createTransaction(
       data.type === "transfer" ? data.transfer_account_id : null,
     category_id: data.type === "transfer" ? null : data.category_id,
     occurred_on: data.occurred_on,
-    is_shared: data.is_shared,
+    is_shared: isShared,
     payment_method: data.payment_method,
     notes: data.notes,
     recurrence: data.recurrence,

@@ -24,7 +24,7 @@ export function budgetRows(
       .map((budget) => [budget.category_id, toNumber(budget.planned_amount)])
   )
 
-  return categories
+  const rows = categories
     .filter((category) => category.kind === "expense")
     .map((category) => {
       const spent = transactions
@@ -46,7 +46,27 @@ export function budgetRows(
         percent,
       }
     })
-    .sort((a, b) => b.spent - a.spent)
+
+  const merged = new Map<string, BudgetRow>()
+  for (const row of rows) {
+    const key = row.category.name.trim().toLocaleLowerCase("pt-BR")
+    const existing = merged.get(key)
+    if (!existing) {
+      merged.set(key, { ...row })
+      continue
+    }
+    existing.planned += row.planned
+    existing.spent += row.spent
+    existing.remaining = existing.planned - existing.spent
+    existing.percent =
+      existing.planned > 0
+        ? (existing.spent / existing.planned) * 100
+        : existing.spent > 0
+          ? 100
+          : 0
+  }
+
+  return [...merged.values()].sort((a, b) => b.spent - a.spent)
 }
 
 export function projectedMonthEndBalance(

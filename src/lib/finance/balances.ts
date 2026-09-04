@@ -80,7 +80,9 @@ export function monthExpensesByCategory(
       continue
     }
 
-    const key = transaction.category_id ?? "sem-categoria"
+    const key = (transaction.category?.name ?? "Sem categoria")
+      .trim()
+      .toLocaleLowerCase("pt-BR")
     const current = totals.get(key) ?? {
       name: transaction.category?.name ?? "Sem categoria",
       color: transaction.category?.color ?? "#8a7e72",
