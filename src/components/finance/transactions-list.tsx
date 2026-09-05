@@ -6,8 +6,9 @@ import { toast } from "sonner"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { EmptyState } from "@/components/shared/empty-state"
 import { deleteTransaction } from "@/lib/finance/actions"
-import { formatBRL, formatDay, initialsFromName, toNumber } from "@/lib/finance/format"
+import { formatBRL, formatDay, initialsFromName, todayISO, toNumber } from "@/lib/finance/format"
 import { typeLabel, typeColor } from "@/lib/finance/balances"
+import { recurrenceLabel } from "@/lib/finance/upcoming"
 import type { Profile, Transaction } from "@/lib/finance/types"
 
 export function TransactionsList({
@@ -53,6 +54,8 @@ export function TransactionsList({
             : transaction.type === "expense"
               ? -toNumber(transaction.amount)
               : 0
+        const scheduled = transaction.occurred_on > todayISO()
+        const seriesLabel = recurrenceLabel(transaction)
 
         return (
           <li
@@ -82,6 +85,20 @@ export function TransactionsList({
                 {firstName} · {formatDay(transaction.occurred_on)} ·{" "}
                 {transaction.account?.name}
               </p>
+              {scheduled || seriesLabel ? (
+                <div className="mt-1 flex flex-wrap gap-1">
+                  {scheduled ? (
+                    <span className="rounded-full bg-sky-500/10 px-2 py-0.5 text-[10px] font-medium text-sky-700 dark:text-sky-300">
+                      Agendado
+                    </span>
+                  ) : null}
+                  {seriesLabel ? (
+                    <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary">
+                      {seriesLabel}
+                    </span>
+                  ) : null}
+                </div>
+              ) : null}
             </div>
             <div className="text-right">
               <p className={`text-sm font-medium ${typeColor(transaction.type)}`}>

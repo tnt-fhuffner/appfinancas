@@ -33,7 +33,8 @@ export function budgetRows(
             transaction.type === "expense" &&
             transaction.category_id === category.id &&
             transaction.occurred_on >= monthStart &&
-            transaction.occurred_on <= monthEnd
+            transaction.occurred_on <= monthEnd &&
+            transaction.occurred_on <= todayISO()
         )
         .reduce((sum, transaction) => sum + toNumber(transaction.amount), 0)
       const planned = plannedByCategory.get(category.id) ?? 0
@@ -101,7 +102,17 @@ export function projectedMonthEndBalance(
     return bill.kind === "payable" ? sum - amount : sum + amount
   }, 0)
 
-  return projectedFromPace + billDelta
+  const plannedDelta = transactions.reduce((sum, transaction) => {
+    if (transaction.occurred_on <= today || transaction.occurred_on > monthEnd) {
+      return sum
+    }
+    const amount = toNumber(transaction.amount)
+    if (transaction.type === "income") return sum + amount
+    if (transaction.type === "expense") return sum - amount
+    return sum
+  }, 0)
+
+  return projectedFromPace + billDelta + plannedDelta
 }
 
 export function buildAlerts(

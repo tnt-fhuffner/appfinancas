@@ -29,8 +29,27 @@ export function monthBounds(isoDate = todayISO()) {
 }
 
 export function addMonthsISO(isoDate: string, delta: number) {
+  return addMonthsClamped(isoDate, delta)
+}
+
+export function addMonthsClamped(isoDate: string, delta: number) {
   const [year, month, day] = isoDate.split("-").map(Number)
-  const date = new Date(year, month - 1 + delta, day)
+  const firstOfMonth = new Date(year, month - 1 + delta, 1)
+  const lastDay = new Date(
+    firstOfMonth.getFullYear(),
+    firstOfMonth.getMonth() + 1,
+    0
+  ).getDate()
+  const safeDay = Math.min(day, lastDay)
+  const y = firstOfMonth.getFullYear()
+  const m = String(firstOfMonth.getMonth() + 1).padStart(2, "0")
+  const d = String(safeDay).padStart(2, "0")
+  return `${y}-${m}-${d}`
+}
+
+export function addDaysISO(isoDate: string, days: number) {
+  const [year, month, day] = isoDate.split("-").map(Number)
+  const date = new Date(year, month - 1, day + days)
   const y = date.getFullYear()
   const m = String(date.getMonth() + 1).padStart(2, "0")
   const d = String(date.getDate()).padStart(2, "0")

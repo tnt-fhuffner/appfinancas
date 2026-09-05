@@ -28,9 +28,10 @@ import {
   monthExpensesByCategory,
   monthTotals,
   monthlyBalanceSeries,
+  periodMovement,
   totalBalance,
 } from "@/lib/finance/balances"
-import { formatBRL } from "@/lib/finance/format"
+import { formatBRL, todayISO } from "@/lib/finance/format"
 import {
   isCurrentMonth,
   isSingleMonth,
@@ -66,9 +67,22 @@ export function HouseholdDashboard({
   const label = periodLabel(range)
   const currentMonth = isCurrentMonth(range)
   const singleMonth = isSingleMonth(range)
-  const pie = monthExpensesByCategory(data.transactions, start, end)
-  const totals = monthTotals(data.transactions, start, end)
+  const asOf = todayISO()
+  const settledTransactions = data.transactions.filter(
+    (transaction) => transaction.occurred_on <= asOf
+  )
+  const pie = monthExpensesByCategory(settledTransactions, start, end)
+  const totals = monthTotals(settledTransactions, start, end)
+  const movement = periodMovement(data.transactions, start, end, asOf)
   const coupleTotal = totalBalance(data.accounts, data.transactions)
+  const plannedHint =
+    movement.planned.expense > 0 || movement.planned.income > 0
+      ? `Ainda vem neste período: gastos ${formatBRL(movement.planned.expense)}${
+          movement.planned.income > 0
+            ? ` · receitas ${formatBRL(movement.planned.income)}`
+            : ""
+        }. O saldo de hoje ainda não inclui isso.`
+      : undefined
   const series = monthlyBalanceSeries(
     data.accounts,
     data.transactions,
@@ -160,6 +174,7 @@ export function HouseholdDashboard({
             expense={totals.expense}
             net={totals.net}
             netLabel={singleMonth ? "Saldo do mês" : "Saldo do período"}
+            plannedHint={plannedHint}
           />
         </CardContent>
       </Card>

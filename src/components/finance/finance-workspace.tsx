@@ -26,6 +26,7 @@ import { PeriodFilter } from "@/components/finance/period-filter"
 import { SetupBanner } from "@/components/finance/setup-banner"
 import { TransactionForm } from "@/components/finance/transaction-form"
 import { TransactionsList } from "@/components/finance/transactions-list"
+import { UpcomingAgenda } from "@/components/finance/upcoming-agenda"
 import { usePeriod } from "@/components/finance/use-period"
 import { archiveAccount, deleteCategory } from "@/lib/finance/actions"
 import { accountBalance } from "@/lib/finance/balances"
@@ -34,6 +35,7 @@ import { ACCOUNT_TYPES, type FinanceBootstrap } from "@/lib/finance/types"
 
 const TABS = [
   { id: "visao", label: "Visão" },
+  { id: "agenda", label: "Agenda" },
   { id: "lancamentos", label: "Lançamentos" },
   { id: "orcamento", label: "Orçamento" },
   { id: "a-pagar", label: "A pagar" },
@@ -41,12 +43,18 @@ const TABS = [
   { id: "categorias", label: "Categorias" },
 ] as const
 
+export type FinanceTab = (typeof TABS)[number]["id"]
+
+export function isFinanceTab(value: string | undefined): value is FinanceTab {
+  return TABS.some((tab) => tab.id === value)
+}
+
 export function FinanceWorkspace({
   data,
   defaultTab = "visao",
 }: {
   data: FinanceBootstrap
-  defaultTab?: (typeof TABS)[number]["id"]
+  defaultTab?: FinanceTab
 }) {
   const [tab, setTab] = useState<(typeof TABS)[number]["id"]>(defaultTab)
   const [accountOpen, setAccountOpen] = useState(false)
@@ -100,6 +108,8 @@ export function FinanceWorkspace({
           onCustomEnd={period.setCustomEnd}
         />
       ) : null}
+
+      {tab === "agenda" ? <UpcomingAgenda data={data} /> : null}
 
       {tab === "visao" ? (
         <HouseholdDashboard

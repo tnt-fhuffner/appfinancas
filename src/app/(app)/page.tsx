@@ -1,5 +1,6 @@
 import { HouseholdDashboardWithPeriod } from "@/components/finance/household-dashboard"
 import { SetupBanner } from "@/components/finance/setup-banner"
+import { UpcomingPreview } from "@/components/finance/upcoming-preview"
 import { EventPreview } from "@/components/events/event-preview"
 import { GoalsPreview } from "@/components/goals/goals-preview"
 import { TripPreview } from "@/components/trips/trip-preview"
@@ -58,6 +59,10 @@ export default async function HomePage() {
       </section>
 
       <HouseholdDashboardWithPeriod data={finance}>
+        <UpcomingPreview
+          transactions={finance.transactions}
+          bills={finance.bills}
+        />
         <GoalsPreview items={goalItems} />
         {upcomingTrip || upcomingEvent ? (
           <section className="grid gap-4 md:grid-cols-2">

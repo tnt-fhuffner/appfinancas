@@ -41,7 +41,7 @@ export function QuickAddButton({
       <Sheet open={open} onOpenChange={setOpen}>
         <SheetContent side="bottom" className="max-h-[90dvh] overflow-y-auto rounded-t-3xl">
           <SheetHeader>
-            <SheetTitle>Lançar agora</SheetTitle>
+            <SheetTitle>Novo lançamento</SheetTitle>
           </SheetHeader>
           <div className="px-4 pb-6">
             <TransactionForm

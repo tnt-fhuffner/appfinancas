@@ -109,6 +109,8 @@ function BillSection({
 function BillRow({ bill, accountName }: { bill: Bill; accountName: string | null }) {
   const [pending, setPending] = useState(false)
   const overdue = bill.status === "pending" && bill.due_on < todayISO()
+  const repeat = bill.title.match(/ · (\d+)\/(\d+)$/)
+  const title = bill.title.replace(/ · \d+\/\d+$/, "")
 
   async function settle() {
     setPending(true)
@@ -135,7 +137,14 @@ function BillRow({ bill, accountName }: { bill: Bill; accountName: string | null
   return (
     <li className="flex items-start justify-between gap-3 rounded-2xl bg-card/90 p-4 ring-1 ring-foreground/8">
       <div className="min-w-0">
-        <p className="text-sm font-medium">{bill.title}</p>
+        <p className="text-sm font-medium">
+          {title}
+          {repeat ? (
+            <span className="ml-1.5 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary">
+              {repeat[1]}/{repeat[2]}
+            </span>
+          ) : null}
+        </p>
         <p className="mt-1 text-xs text-muted-foreground">
           {bill.kind === "payable" ? "A pagar" : "A receber"} · {formatDay(bill.due_on)}
           {accountName ? ` · ${accountName}` : ""}
@@ -180,6 +189,8 @@ function BillForm({
   onCreated?: () => void
 }) {
   const [kind, setKind] = useState<"payable" | "receivable">("payable")
+  const [repeat, setRepeat] = useState<"once" | "monthly">("once")
+  const [months, setMonths] = useState(12)
   const [pending, setPending] = useState(false)
   const visibleCategories = categories.filter((category) =>
     kind === "receivable" ? category.kind === "income" : category.kind === "expense"
@@ -208,6 +219,7 @@ function BillForm({
       account_id: String(formData.get("account_id") ?? "") || null,
       is_shared: true,
       notes: String(formData.get("notes") ?? "").trim() || null,
+      repeat_count: repeat === "monthly" ? months : 1,
     })
     setPending(false)
 
@@ -216,7 +228,12 @@ function BillForm({
       return
     }
 
-    toast.success("Conta lançada")
+    const createdCount = "count" in result ? result.count : 1
+    toast.success(
+      createdCount && createdCount > 1
+        ? `${createdCount} vencimentos na agenda`
+        : "Conta lançada"
+    )
     onCreated?.()
   }
 
@@ -275,7 +292,9 @@ function BillForm({
           />
         </div>
         <div className="space-y-2">
-          <Label htmlFor="bill-due">Vencimento</Label>
+          <Label htmlFor="bill-due">
+            {repeat === "monthly" ? "1º vencimento" : "Vencimento"}
+          </Label>
           <input
             id="bill-due"
             name="due_on"
@@ -284,6 +303,47 @@ function BillForm({
             className={fieldClass}
           />
         </div>
+      </div>
+      <div className="space-y-2">
+        <p className="text-sm font-medium">Se repete?</p>
+        <div className="grid grid-cols-2 gap-1 rounded-2xl bg-muted p-1">
+          {(
+            [
+              ["once", "Só esta"],
+              ["monthly", "Todo mês"],
+            ] as const
+          ).map(([value, label]) => (
+            <button
+              key={value}
+              type="button"
+              onClick={() => setRepeat(value)}
+              className={`rounded-xl px-2 py-2 text-xs font-medium ${
+                repeat === value
+                  ? "bg-background text-foreground shadow-sm"
+                  : "text-muted-foreground"
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+        {repeat === "monthly" ? (
+          <div className="space-y-2">
+            <Label htmlFor="bill-months">Por quantos meses?</Label>
+            <input
+              id="bill-months"
+              type="number"
+              min={2}
+              max={24}
+              value={months}
+              onChange={(event) => setMonths(Number(event.target.value) || 2)}
+              className={fieldClass}
+            />
+            <p className="text-xs text-muted-foreground">
+              Aluguel, internet, academia — criamos os vencimentos na agenda.
+            </p>
+          </div>
+        ) : null}
       </div>
       <div className="space-y-2">
         <Label htmlFor="bill-account">Conta para quitar</Label>
@@ -311,7 +371,11 @@ function BillForm({
         <input id="bill-notes" name="notes" className={fieldClass} placeholder="Opcional" />
       </div>
       <Button type="submit" className="h-11 w-full rounded-xl" disabled={pending}>
-        {pending ? "Salvando..." : "Salvar conta"}
+        {pending
+          ? "Salvando..."
+          : repeat === "monthly"
+            ? `Agendar ${months} meses`
+            : "Salvar conta"}
       </Button>
     </form>
   )

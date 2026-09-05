@@ -3,7 +3,8 @@
 import { revalidatePath } from "next/cache"
 import { z } from "zod"
 import { requireUser } from "@/lib/auth/session"
-import { todayISO } from "@/lib/finance/format"
+import { addDaysISO, addMonthsClamped, todayISO } from "@/lib/finance/format"
+import { composeSeriesNotes, seriesBaseNotes } from "@/lib/finance/upcoming"
 import {
   asUuid,
   dbError,
@@ -42,6 +43,7 @@ const transactionSchema = z.object({
   payment_method: z.string().max(32).nullable(),
   notes: notesField,
   recurrence: z.enum(["once", "monthly", "installment"]).default("once"),
+  installment_count: z.number().int().min(2).max(36).nullable().optional(),
 })
 
 function refreshFinance() {
@@ -99,24 +101,34 @@ export async function createTransaction(
     return { error: "Escolha a conta de destino." }
   }
 
+  const recurrence = data.type === "transfer" ? "once" : data.recurrence
+  const count =
+    recurrence === "once" ? 1 : (data.installment_count ?? 0)
+  if (recurrence !== "once" && (count < 2 || count > 36)) {
+    return { error: "Diga quantas vezes, entre 2 e 36." }
+  }
+
   const { supabase, user } = await requireUser()
-  const { error } = await supabase.from("transactions").insert({
+  const rows = Array.from({ length: count }, (_, index) => ({
     amount: data.amount,
     type: data.type,
     account_id: data.account_id,
     transfer_account_id:
       data.type === "transfer" ? data.transfer_account_id : null,
     category_id: data.type === "transfer" ? null : data.category_id,
-    occurred_on: data.occurred_on,
+    occurred_on: addMonthsClamped(data.occurred_on, index),
     is_shared: true,
     payment_method: data.payment_method,
-    notes: data.notes,
-    recurrence: data.recurrence,
+    notes: composeSeriesNotes(recurrence, index + 1, count, data.notes),
+    recurrence,
+    installment_count: count > 1 ? count : null,
     owner_id: user.id,
-  })
+  }))
+
+  const { error } = await supabase.from("transactions").insert(rows)
   if (error) return { error: dbError(error.message) }
   refreshFinance()
-  return { error: null }
+  return { error: null, count }
 }
 
 export async function deleteTransaction(id: string) {
@@ -127,6 +139,79 @@ export async function deleteTransaction(id: string) {
   if (error) return { error: dbError(error.message) }
   refreshFinance()
   return { error: null }
+}
+
+export async function cancelRemainingInSeries(id: string) {
+  const transactionId = asUuid(id)
+  if (!transactionId) return { error: "Pedido inválido." }
+  const { supabase } = await requireUser()
+  const { data: current, error: loadError } = await supabase
+    .from("transactions")
+    .select(
+      "id, amount, type, account_id, transfer_account_id, category_id, occurred_on, payment_method, recurrence, installment_count, notes"
+    )
+    .eq("id", transactionId)
+    .single()
+
+  if (loadError || !current) return { error: "Lançamento não encontrado." }
+  if (current.recurrence === "once") {
+    return deleteTransaction(transactionId)
+  }
+
+  const fromDate =
+    current.occurred_on > todayISO()
+      ? current.occurred_on
+      : addDaysISO(todayISO(), 1)
+
+  const { data: rows, error: listError } = await supabase
+    .from("transactions")
+    .select(
+      "id, amount, type, account_id, transfer_account_id, category_id, occurred_on, payment_method, recurrence, installment_count, notes"
+    )
+    .eq("account_id", current.account_id)
+    .eq("type", current.type)
+    .eq("recurrence", current.recurrence)
+    .eq("amount", current.amount)
+    .gte("occurred_on", fromDate)
+
+  if (listError) return { error: dbError(listError.message) }
+
+  const ids = (rows ?? [])
+    .filter((row) =>
+      sameSeriesRow(
+        current as Record<string, unknown>,
+        row as Record<string, unknown>
+      )
+    )
+    .map((row) => String(row.id))
+
+  if (ids.length === 0) {
+    return { error: "Não há parcelas futuras nesta série." }
+  }
+
+  const { error } = await supabase.from("transactions").delete().in("id", ids)
+  if (error) return { error: dbError(error.message) }
+  refreshFinance()
+  return { error: null, count: ids.length }
+}
+
+function sameSeriesRow(
+  left: Record<string, unknown>,
+  right: Record<string, unknown>
+) {
+  return (
+    String(left.recurrence) === String(right.recurrence) &&
+    Number(left.installment_count ?? 0) === Number(right.installment_count ?? 0) &&
+    Number(left.amount) === Number(right.amount) &&
+    String(left.account_id) === String(right.account_id) &&
+    String(left.transfer_account_id ?? "") ===
+      String(right.transfer_account_id ?? "") &&
+    String(left.category_id ?? "") === String(right.category_id ?? "") &&
+    String(left.type) === String(right.type) &&
+    String(left.payment_method ?? "") === String(right.payment_method ?? "") &&
+    seriesBaseNotes((left.notes as string | null) ?? null) ===
+      seriesBaseNotes((right.notes as string | null) ?? null)
+  )
 }
 
 export async function archiveAccount(id: string) {
@@ -216,21 +301,32 @@ const billSchema = z.object({
   account_id: z.string().uuid().nullable(),
   is_shared: z.boolean(),
   notes: notesField,
+  repeat_count: z.number().int().min(1).max(24).default(1),
 })
 
 export async function createBill(input: z.infer<typeof billSchema>) {
   const parsed = billSchema.safeParse(input)
   if (!parsed.success) return zodError(parsed.error)
+  const data = parsed.data
+  const count = data.repeat_count
   const { supabase, user } = await requireUser()
-  const { error } = await supabase.from("bills").insert({
-    ...parsed.data,
+  const rows = Array.from({ length: count }, (_, index) => ({
+    title:
+      count > 1 ? `${data.title} · ${index + 1}/${count}` : data.title,
+    amount: data.amount,
+    kind: data.kind,
+    due_on: addMonthsClamped(data.due_on, index),
+    category_id: data.category_id,
+    account_id: data.account_id,
     is_shared: true,
+    notes: data.notes,
     status: "pending",
     owner_id: user.id,
-  })
+  }))
+  const { error } = await supabase.from("bills").insert(rows)
   if (error) return { error: dbError(error.message) }
   refreshFinance()
-  return { error: null }
+  return { error: null, count }
 }
 
 export async function deleteBill(id: string) {

@@ -1,5 +1,5 @@
 import type { Account, Transaction, TransactionType } from "@/lib/finance/types"
-import { toNumber } from "@/lib/finance/format"
+import { todayISO, toNumber } from "@/lib/finance/format"
 
 export function signedForAccount(
   transaction: Pick<
@@ -22,22 +22,41 @@ export function signedForAccount(
   return 0
 }
 
+export function settledTransactions(
+  transactions: Transaction[],
+  asOf = todayISO()
+) {
+  return transactions.filter((transaction) => transaction.occurred_on <= asOf)
+}
+
+export function plannedTransactions(
+  transactions: Transaction[],
+  asOf = todayISO()
+) {
+  return transactions.filter((transaction) => transaction.occurred_on > asOf)
+}
+
 export function accountBalance(
   account: Account,
-  transactions: Transaction[]
+  transactions: Transaction[],
+  asOf = todayISO()
 ) {
   return (
     toNumber(account.initial_balance) +
-    transactions.reduce(
+    settledTransactions(transactions, asOf).reduce(
       (sum, transaction) => sum + signedForAccount(transaction, account.id),
       0
     )
   )
 }
 
-export function totalBalance(accounts: Account[], transactions: Transaction[]) {
+export function totalBalance(
+  accounts: Account[],
+  transactions: Transaction[],
+  asOf = todayISO()
+) {
   return accounts.reduce(
-    (sum, account) => sum + accountBalance(account, transactions),
+    (sum, account) => sum + accountBalance(account, transactions, asOf),
     0
   )
 }
@@ -98,15 +117,17 @@ export function monthExpensesByCategory(
 export function monthlyBalanceSeries(
   accounts: Account[],
   transactions: Transaction[],
-  months: { start: string; end: string; label: string }[]
+  months: { start: string; end: string; label: string }[],
+  asOf = todayISO()
 ) {
   return months.map((month) => {
+    const cutoff = month.end < asOf ? month.end : asOf
     const untilMonth = transactions.filter(
-      (transaction) => transaction.occurred_on <= month.end
+      (transaction) => transaction.occurred_on <= cutoff
     )
     return {
       label: month.label,
-      saldo: Number(totalBalance(accounts, untilMonth).toFixed(2)),
+      saldo: Number(totalBalance(accounts, untilMonth, cutoff).toFixed(2)),
     }
   })
 }
@@ -128,6 +149,26 @@ export function monthTotals(
   }
 
   return { income, expense, net: income - expense }
+}
+
+export function periodMovement(
+  transactions: Transaction[],
+  start: string,
+  end: string,
+  asOf = todayISO()
+) {
+  return {
+    settled: monthTotals(
+      transactions.filter((transaction) => transaction.occurred_on <= asOf),
+      start,
+      end
+    ),
+    planned: monthTotals(
+      transactions.filter((transaction) => transaction.occurred_on > asOf),
+      start,
+      end
+    ),
+  }
 }
 
 export function typeLabel(type: TransactionType) {
