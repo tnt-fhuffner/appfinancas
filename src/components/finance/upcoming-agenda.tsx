@@ -4,7 +4,14 @@ import { useMemo, useState } from "react"
 import { CalendarClock } from "lucide-react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 import { EmptyState } from "@/components/shared/empty-state"
+import { TransactionForm } from "@/components/finance/transaction-form"
 import {
   cancelRemainingInSeries,
   deleteBill,
@@ -20,7 +27,7 @@ import {
   type UpcomingBucket,
   type UpcomingItem,
 } from "@/lib/finance/upcoming"
-import type { FinanceBootstrap } from "@/lib/finance/types"
+import type { FinanceBootstrap, Transaction } from "@/lib/finance/types"
 
 const FILTERS = [
   { id: "all", label: "Tudo" },
@@ -34,6 +41,7 @@ type FilterId = (typeof FILTERS)[number]["id"]
 
 export function UpcomingAgenda({ data }: { data: FinanceBootstrap }) {
   const [filter, setFilter] = useState<FilterId>("all")
+  const [editing, setEditing] = useState<Transaction | null>(null)
   const items = useMemo(
     () => buildUpcomingItems(data.transactions, data.bills),
     [data.transactions, data.bills]
@@ -99,13 +107,42 @@ export function UpcomingAgenda({ data }: { data: FinanceBootstrap }) {
               </h4>
               <ul className="space-y-2">
                 {group.items.map((item) => (
-                  <AgendaRow key={`${item.source}-${item.id}`} item={item} />
+                  <AgendaRow
+                    key={`${item.source}-${item.id}`}
+                    item={item}
+                    onEdit={
+                      item.source === "transaction"
+                        ? () =>
+                            setEditing(
+                              data.transactions.find((row) => row.id === item.id) ??
+                                null
+                            )
+                        : undefined
+                    }
+                  />
                 ))}
               </ul>
             </section>
           ))}
         </div>
       )}
+
+      <Dialog open={Boolean(editing)} onOpenChange={(open) => !open && setEditing(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Editar lançamento</DialogTitle>
+          </DialogHeader>
+          {editing ? (
+            <TransactionForm
+              key={editing.id}
+              transaction={editing}
+              accounts={data.accounts}
+              categories={data.categories}
+              onSaved={() => setEditing(null)}
+            />
+          ) : null}
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
@@ -159,7 +196,13 @@ function SummaryChip({
   )
 }
 
-function AgendaRow({ item }: { item: UpcomingItem }) {
+function AgendaRow({
+  item,
+  onEdit,
+}: {
+  item: UpcomingItem
+  onEdit?: () => void
+}) {
   const [pending, setPending] = useState(false)
 
   async function settle() {
@@ -251,6 +294,15 @@ function AgendaRow({ item }: { item: UpcomingItem }) {
           >
             {item.billKind === "receivable" ? "Receber" : "Pagar"}
           </Button>
+        ) : null}
+        {onEdit ? (
+          <button
+            type="button"
+            className="text-xs text-muted-foreground hover:text-foreground"
+            onClick={onEdit}
+          >
+            Editar
+          </button>
         ) : null}
         {item.source === "transaction" && item.isSeries ? (
           <button

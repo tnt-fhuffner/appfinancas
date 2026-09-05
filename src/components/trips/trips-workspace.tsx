@@ -16,13 +16,14 @@ import { TripForm } from "@/components/trips/trip-form"
 import { formatDateRange } from "@/lib/finance/format"
 import { countdownLabel, sortTrips, tripPhase } from "@/lib/trips/countdown"
 import { TRIP_STATUSES, type Trip } from "@/lib/trips/types"
+import { pageShellClass } from "@/lib/ui"
 
 export function TripsWorkspace({ trips }: { trips: Trip[] }) {
   const [open, setOpen] = useState(false)
   const sorted = sortTrips(trips)
 
   return (
-    <div className="mx-auto flex w-full max-w-5xl flex-col gap-6">
+    <div className={pageShellClass}>
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h2 className="font-heading text-2xl tracking-tight">Viagens</h2>

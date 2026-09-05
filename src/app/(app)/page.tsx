@@ -13,6 +13,7 @@ import { getEventsBootstrap } from "@/lib/events/queries"
 import { nextTrip } from "@/lib/trips/countdown"
 import { getTripsBootstrap } from "@/lib/trips/queries"
 import { createClient } from "@/lib/supabase/server"
+import { pageShellClass } from "@/lib/ui"
 
 export default async function HomePage() {
   const supabase = await createClient()
@@ -39,7 +40,7 @@ export default async function HomePage() {
   const upcomingEvent = events.ready ? nextEvent(events.events) : null
 
   return (
-    <div className="mx-auto flex w-full max-w-5xl flex-col gap-6">
+    <div className={pageShellClass}>
       {!finance.alertsReady ? (
         <SetupBanner sql={finance.schemaSqlPhase3} compact />
       ) : null}

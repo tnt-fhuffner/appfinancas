@@ -22,6 +22,12 @@ export const metadata: Metadata = {
   description: "O diário financeiro e de sonhos do casal.",
   applicationName: "Nós",
   robots: { index: false, follow: false },
+  appleWebApp: {
+    capable: true,
+    title: "Nós",
+    statusBarStyle: "black-translucent",
+  },
+  formatDetection: { telephone: false },
 }
 
 export const viewport: Viewport = {

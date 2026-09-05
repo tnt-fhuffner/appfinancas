@@ -42,7 +42,7 @@ export function AppShell({
       <Sidebar user={user} />
       <div className="relative flex min-w-0 flex-1 flex-col">
         <AppHeader title={titleForPath(pathname)} user={user} />
-        <main className="flex-1 px-4 pt-6 pb-[calc(7rem+env(safe-area-inset-bottom))] md:px-8 md:pb-10">
+        <main className="flex-1 px-4 pt-5 pb-[calc(7.5rem+env(safe-area-inset-bottom))] sm:px-6 md:px-8 md:pt-6 md:pb-10 lg:px-10">
           {children}
         </main>
       </div>

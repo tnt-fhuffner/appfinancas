@@ -129,6 +129,13 @@
   html {
     @apply font-sans;
     -webkit-tap-highlight-color: transparent;
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+  }
+
+  body {
+    min-height: 100dvh;
+    overscroll-behavior-y: contain;
   }
 
   .no-scrollbar {

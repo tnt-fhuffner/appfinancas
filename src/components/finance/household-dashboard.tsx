@@ -217,6 +217,8 @@ export function HouseholdDashboard({
         <TransactionsList
           transactions={periodTransactions.slice(0, 8)}
           profiles={data.profiles}
+          accounts={data.accounts}
+          categories={data.categories}
         />
       </section>
     </div>

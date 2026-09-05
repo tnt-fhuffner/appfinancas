@@ -12,7 +12,7 @@ export function Sidebar({ user }: { user: AppUser }) {
   const items = [...primaryNav, settingsNav]
 
   return (
-    <aside className="relative z-10 sticky top-0 hidden h-dvh w-64 shrink-0 flex-col border-r border-border/70 bg-sidebar px-4 py-6 md:flex">
+    <aside className="relative z-10 sticky top-0 hidden h-dvh w-60 shrink-0 flex-col border-r border-border/70 bg-sidebar px-4 pt-[max(1.5rem,env(safe-area-inset-top))] pb-6 lg:w-64 md:flex">
       <Link href="/" className="mb-8 flex items-center gap-3 px-2">
         <span className="flex size-9 items-center justify-center rounded-2xl bg-primary text-sm font-semibold text-primary-foreground shadow-sm">
           nós

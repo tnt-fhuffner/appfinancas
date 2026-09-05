@@ -39,6 +39,7 @@ import {
   TRIP_STATUSES,
   type TripDetail,
 } from "@/lib/trips/types"
+import { pageShellClass } from "@/lib/ui"
 
 const TABS = [
   { id: "visao", label: "Visão" },
@@ -105,7 +106,7 @@ export function TripDetailView({
   }
 
   return (
-    <div className="mx-auto flex w-full max-w-5xl flex-col gap-6">
+    <div className={pageShellClass}>
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <Link

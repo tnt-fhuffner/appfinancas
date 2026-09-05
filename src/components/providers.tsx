@@ -13,7 +13,12 @@ export function Providers({ children }: { children: ReactNode }) {
     >
       <TooltipProvider delay={200}>
         {children}
-        <Toaster position="top-center" richColors />
+        <Toaster
+          position="top-center"
+          richColors
+          offset={{ top: "calc(0.75rem + env(safe-area-inset-top))" }}
+          mobileOffset={{ top: "calc(0.75rem + env(safe-area-inset-top))" }}
+        />
       </TooltipProvider>
     </NextThemesProvider>
   )

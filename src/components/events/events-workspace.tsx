@@ -36,6 +36,7 @@ import {
   type CoupleEvent,
   type EventOccurrence,
 } from "@/lib/events/types"
+import { pageShellClass } from "@/lib/ui"
 
 const WEEKDAYS = ["seg", "ter", "qua", "qui", "sex", "sáb", "dom"]
 
@@ -79,7 +80,7 @@ export function EventsWorkspace({
   }
 
   return (
-    <div className="mx-auto flex w-full max-w-5xl flex-col gap-6">
+    <div className={pageShellClass}>
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h2 className="font-heading text-2xl tracking-tight">Eventos e dates</h2>

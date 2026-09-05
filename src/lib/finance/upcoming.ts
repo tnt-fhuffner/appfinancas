@@ -61,6 +61,12 @@ export function seriesBaseNotes(notes: string | null) {
   return notes.replace(/^(Parcela|Mensal) \d+\/\d+( · )?/u, "").trim()
 }
 
+export function withSeriesNotes(existingNotes: string | null, nextNotes: string | null) {
+  const match = existingNotes?.match(/^(Parcela|Mensal) \d+\/\d+/)
+  if (!match) return nextNotes
+  return nextNotes ? `${match[0]} · ${nextNotes}` : match[0]
+}
+
 export function recurrenceLabel(
   transaction: Pick<Transaction, "notes" | "recurrence" | "installment_count">
 ) {

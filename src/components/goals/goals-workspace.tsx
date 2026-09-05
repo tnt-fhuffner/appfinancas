@@ -15,6 +15,7 @@ import { GoalCard } from "@/components/goals/goal-card"
 import { GoalForm } from "@/components/goals/goal-form"
 import { progressForGoals } from "@/lib/goals/progress"
 import type { GoalsBootstrap } from "@/lib/goals/types"
+import { pageShellClass } from "@/lib/ui"
 
 export function GoalsWorkspace({ data }: { data: GoalsBootstrap }) {
   const [open, setOpen] = useState(false)
@@ -23,7 +24,7 @@ export function GoalsWorkspace({ data }: { data: GoalsBootstrap }) {
   const done = items.filter((item) => item.goal.status === "completed")
 
   return (
-    <div className="mx-auto flex w-full max-w-5xl flex-col gap-6">
+    <div className={pageShellClass}>
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h2 className="font-heading text-2xl tracking-tight">Metas e sonhos</h2>

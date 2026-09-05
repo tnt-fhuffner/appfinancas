@@ -10,7 +10,7 @@ export default function LoginPage() {
   const supabaseReady = isSupabaseConfigured()
 
   return (
-    <div className="relative flex min-h-dvh flex-col overflow-hidden bg-background">
+    <div className="relative flex min-h-dvh flex-col overflow-hidden bg-background pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]">
       <div className="pointer-events-none absolute inset-0">
         <div className="absolute -top-24 left-1/2 size-80 -translate-x-1/2 rounded-full bg-primary/15 blur-3xl" />
         <div className="absolute right-[-4rem] bottom-24 size-64 rounded-full bg-accent/70 blur-3xl" />

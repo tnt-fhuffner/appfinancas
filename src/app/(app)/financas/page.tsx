@@ -1,9 +1,7 @@
-import {
-  FinanceWorkspace,
-  isFinanceTab,
-} from "@/components/finance/finance-workspace"
+import { FinanceWorkspace } from "@/components/finance/finance-workspace"
 import { SetupBanner } from "@/components/finance/setup-banner"
 import { getFinanceBootstrap } from "@/lib/finance/queries"
+import { isFinanceTab } from "@/lib/finance/tabs"
 
 export default async function FinancasPage({
   searchParams,

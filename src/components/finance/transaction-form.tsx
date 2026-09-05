@@ -5,15 +5,23 @@ import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { fieldClass } from "@/components/finance/fields"
-import { createTransaction } from "@/lib/finance/actions"
+import { createTransaction, updateTransaction } from "@/lib/finance/actions"
 import {
   addMonthsClamped,
   formatDay,
   formatBRL,
+  moneyToInput,
   parseMoneyInput,
   todayISO,
 } from "@/lib/finance/format"
-import type { Account, Category, Recurrence, TransactionType } from "@/lib/finance/types"
+import { seriesBaseNotes } from "@/lib/finance/upcoming"
+import type {
+  Account,
+  Category,
+  Recurrence,
+  Transaction,
+  TransactionType,
+} from "@/lib/finance/types"
 import { PAYMENT_METHODS, TRANSACTION_TYPES } from "@/lib/finance/types"
 
 const RECURRENCE_OPTIONS: {
@@ -41,22 +49,34 @@ const RECURRENCE_OPTIONS: {
 export function TransactionForm({
   accounts,
   categories,
+  transaction,
   defaultType = "expense",
   compact = false,
-  onCreated,
+  onSaved,
 }: {
   accounts: Account[]
   categories: Category[]
+  transaction?: Transaction
   defaultType?: TransactionType
   compact?: boolean
-  onCreated?: () => void
+  onSaved?: () => void
 }) {
-  const [type, setType] = useState<TransactionType>(defaultType)
-  const [recurrence, setRecurrence] = useState<Recurrence>("once")
-  const [count, setCount] = useState(12)
-  const [amountText, setAmountText] = useState("")
-  const [startDate, setStartDate] = useState(todayISO())
+  const editing = Boolean(transaction)
+  const [type, setType] = useState<TransactionType>(
+    transaction?.type ?? defaultType
+  )
+  const [recurrence, setRecurrence] = useState<Recurrence>(
+    transaction?.recurrence ?? "once"
+  )
+  const [count, setCount] = useState(transaction?.installment_count ?? 12)
+  const [amountText, setAmountText] = useState(
+    transaction ? moneyToInput(transaction.amount) : ""
+  )
+  const [startDate, setStartDate] = useState(
+    transaction?.occurred_on ?? todayISO()
+  )
   const [pending, setPending] = useState(false)
+  const prefix = transaction?.id ?? "new"
 
   const visibleCategories = useMemo(
     () =>
@@ -66,12 +86,14 @@ export function TransactionForm({
     [categories, type]
   )
 
-  const seriesCount = type === "transfer" || recurrence === "once" ? 1 : count
+  const seriesCount =
+    editing || type === "transfer" || recurrence === "once" ? 1 : count
   const amount = parseMoneyInput(amountText)
   const lastDate =
     seriesCount > 1 ? addMonthsClamped(startDate, seriesCount - 1) : startDate
-  const preview =
-    seriesCount > 1 && Number.isFinite(amount) && amount > 0
+  const preview = editing
+    ? null
+    : seriesCount > 1 && Number.isFinite(amount) && amount > 0
       ? recurrence === "installment"
         ? `${seriesCount} parcelas de ${formatBRL(amount)} · última em ${formatDay(lastDate)}`
         : `${formatBRL(amount)} por ${seriesCount} meses · até ${formatDay(lastDate)}`
@@ -85,14 +107,7 @@ export function TransactionForm({
       return
     }
 
-    const nextRecurrence = type === "transfer" ? "once" : recurrence
-    if (nextRecurrence !== "once" && (count < 2 || count > 36)) {
-      toast.error("Escolham entre 2 e 36 vezes.")
-      return
-    }
-
-    setPending(true)
-    const result = await createTransaction({
+    const payload = {
       amount,
       type,
       account_id: String(formData.get("account_id") ?? ""),
@@ -103,14 +118,22 @@ export function TransactionForm({
         ? String(formData.get("category_id"))
         : null,
       occurred_on: startDate || todayISO(),
-      is_shared: true,
       payment_method: formData.get("payment_method")
         ? String(formData.get("payment_method"))
         : null,
       notes: String(formData.get("notes") ?? "").trim() || null,
-      recurrence: nextRecurrence,
-      installment_count: nextRecurrence === "once" ? null : count,
-    })
+    }
+
+    setPending(true)
+    const result = transaction
+      ? await updateTransaction(transaction.id, payload)
+      : await createTransaction({
+          ...payload,
+          is_shared: true,
+          recurrence: type === "transfer" ? "once" : recurrence,
+          installment_count:
+            type === "transfer" || recurrence === "once" ? null : count,
+        })
     setPending(false)
 
     if (result.error) {
@@ -118,18 +141,24 @@ export function TransactionForm({
       return
     }
 
-    const createdCount = "count" in result ? result.count : 1
-    toast.success(
-      createdCount && createdCount > 1
-        ? nextRecurrence === "installment"
-          ? `${createdCount} parcelas na agenda`
-          : `${createdCount} meses na agenda`
-        : startDate > todayISO()
-          ? "Agendado"
-          : "Lançamento salvo"
-    )
-    setAmountText("")
-    onCreated?.()
+    if (transaction) {
+      toast.success("Lançamento atualizado")
+    } else {
+      const createdCount =
+        "count" in result && typeof result.count === "number" ? result.count : 1
+      const nextRecurrence = type === "transfer" ? "once" : recurrence
+      toast.success(
+        createdCount && createdCount > 1
+          ? nextRecurrence === "installment"
+            ? `${createdCount} parcelas na agenda`
+            : `${createdCount} meses na agenda`
+          : startDate > todayISO()
+            ? "Agendado"
+            : "Lançamento salvo"
+      )
+      setAmountText("")
+    }
+    onSaved?.()
   }
 
   if (accounts.length === 0) {
@@ -141,7 +170,7 @@ export function TransactionForm({
   }
 
   const dateLabel =
-    type === "transfer" || recurrence === "once"
+    editing || type === "transfer" || recurrence === "once"
       ? "Data"
       : recurrence === "installment"
         ? "1ª parcela"
@@ -149,13 +178,17 @@ export function TransactionForm({
 
   const submitLabel = pending
     ? "Salvando..."
-    : compact && seriesCount === 1
-      ? "Lançar agora"
-      : seriesCount > 1 && recurrence === "installment"
-        ? `Lançar ${seriesCount} parcelas`
-        : seriesCount > 1
-          ? `Agendar ${seriesCount} meses`
-          : "Salvar lançamento"
+    : editing
+      ? "Salvar alterações"
+      : compact && seriesCount === 1
+        ? "Lançar agora"
+        : seriesCount > 1 && recurrence === "installment"
+          ? `Lançar ${seriesCount} parcelas`
+          : seriesCount > 1
+            ? `Agendar ${seriesCount} meses`
+            : "Salvar lançamento"
+
+  const showExtras = editing || !compact
 
   return (
     <form action={onSubmit} className="space-y-4">
@@ -179,48 +212,56 @@ export function TransactionForm({
         ))}
       </div>
 
-      <div className="space-y-2">
-        <Label htmlFor="amount">
-          {recurrence === "installment" && type !== "transfer"
-            ? "Valor de cada parcela"
-            : recurrence === "monthly" && type !== "transfer"
-              ? "Valor por mês"
-              : "Valor"}
-        </Label>
-        <input
-          id="amount"
-          name="amount"
-          required
-          inputMode="decimal"
-          placeholder="0,00"
-          value={amountText}
-          onChange={(event) => setAmountText(event.target.value)}
-          className={fieldClass}
-          autoFocus={compact}
-        />
-      </div>
-
-      <div className="space-y-2">
-        <Label htmlFor="account_id">
-          {type === "transfer" ? "Sai de" : "Conta"}
-        </Label>
-        <select id="account_id" name="account_id" required className={fieldClass}>
-          {accounts.map((account) => (
-            <option key={account.id} value={account.id}>
-              {account.name}
-            </option>
-          ))}
-        </select>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div className="space-y-2">
+          <Label htmlFor={`${prefix}-amount`}>
+            {!editing && recurrence === "installment" && type !== "transfer"
+              ? "Valor de cada parcela"
+              : !editing && recurrence === "monthly" && type !== "transfer"
+                ? "Valor por mês"
+                : "Valor"}
+          </Label>
+          <input
+            id={`${prefix}-amount`}
+            name="amount"
+            required
+            inputMode="decimal"
+            placeholder="0,00"
+            value={amountText}
+            onChange={(event) => setAmountText(event.target.value)}
+            className={fieldClass}
+            autoFocus={compact && !editing}
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor={`${prefix}-account`}>
+            {type === "transfer" ? "Sai de" : "Conta"}
+          </Label>
+          <select
+            id={`${prefix}-account`}
+            name="account_id"
+            required
+            className={fieldClass}
+            defaultValue={transaction?.account_id}
+          >
+            {accounts.map((account) => (
+              <option key={account.id} value={account.id}>
+                {account.name}
+              </option>
+            ))}
+          </select>
+        </div>
       </div>
 
       {type === "transfer" ? (
         <div className="space-y-2">
-          <Label htmlFor="transfer_account_id">Entra em</Label>
+          <Label htmlFor={`${prefix}-transfer`}>Entra em</Label>
           <select
-            id="transfer_account_id"
+            id={`${prefix}-transfer`}
             name="transfer_account_id"
             required
             className={fieldClass}
+            defaultValue={transaction?.transfer_account_id ?? undefined}
           >
             {accounts.map((account) => (
               <option key={account.id} value={account.id}>
@@ -232,8 +273,13 @@ export function TransactionForm({
       ) : (
         <>
           <div className="space-y-2">
-            <Label htmlFor="category_id">Categoria</Label>
-            <select id="category_id" name="category_id" className={fieldClass}>
+            <Label htmlFor={`${prefix}-category`}>Categoria</Label>
+            <select
+              id={`${prefix}-category`}
+              name="category_id"
+              className={fieldClass}
+              defaultValue={transaction?.category_id ?? ""}
+            >
               <option value="">Sem categoria</option>
               {visibleCategories.map((category) => (
                 <option key={category.id} value={category.id}>
@@ -243,42 +289,48 @@ export function TransactionForm({
             </select>
           </div>
 
-          <div className="space-y-2">
-            <p className="text-sm font-medium">Como acompanha?</p>
-            <div className="grid grid-cols-3 gap-1 rounded-2xl bg-muted p-1">
-              {RECURRENCE_OPTIONS.map((option) => (
-                <button
-                  key={option.value}
-                  type="button"
-                  onClick={() => {
-                    setRecurrence(option.value)
-                    if (option.value === "installment" && count < 2) setCount(6)
-                    if (option.value === "monthly" && count < 2) setCount(12)
-                  }}
-                  className={`rounded-xl px-2 py-2 text-xs font-medium ${
-                    recurrence === option.value
-                      ? "bg-background text-foreground shadow-sm"
-                      : "text-muted-foreground"
-                  }`}
-                >
-                  {option.label}
-                </button>
-              ))}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              {RECURRENCE_OPTIONS.find((option) => option.value === recurrence)?.hint}
-            </p>
-          </div>
-
-          {recurrence !== "once" ? (
+          {!editing ? (
             <div className="space-y-2">
-              <Label htmlFor="installment_count">
+              <p className="text-sm font-medium">Como acompanha?</p>
+              <div className="grid grid-cols-3 gap-1 rounded-2xl bg-muted p-1">
+                {RECURRENCE_OPTIONS.map((option) => (
+                  <button
+                    key={option.value}
+                    type="button"
+                    onClick={() => {
+                      setRecurrence(option.value)
+                      if (option.value === "installment" && count < 2) setCount(6)
+                      if (option.value === "monthly" && count < 2) setCount(12)
+                    }}
+                    className={`rounded-xl px-2 py-2 text-xs font-medium ${
+                      recurrence === option.value
+                        ? "bg-background text-foreground shadow-sm"
+                        : "text-muted-foreground"
+                    }`}
+                  >
+                    {option.label}
+                  </button>
+                ))}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {RECURRENCE_OPTIONS.find((option) => option.value === recurrence)?.hint}
+              </p>
+            </div>
+          ) : transaction?.recurrence !== "once" ? (
+            <p className="text-xs text-muted-foreground">
+              Esta edição muda só este lançamento. As outras parcelas ficam como estão.
+            </p>
+          ) : null}
+
+          {!editing && recurrence !== "once" ? (
+            <div className="space-y-2">
+              <Label htmlFor={`${prefix}-count`}>
                 {recurrence === "installment"
                   ? "Quantas parcelas?"
                   : "Por quantos meses?"}
               </Label>
               <input
-                id="installment_count"
+                id={`${prefix}-count`}
                 type="number"
                 min={2}
                 max={36}
@@ -291,11 +343,11 @@ export function TransactionForm({
         </>
       )}
 
-      <div className="grid grid-cols-2 gap-3">
+      <div className={`grid gap-3 ${showExtras ? "sm:grid-cols-2" : ""}`}>
         <div className="space-y-2">
-          <Label htmlFor="occurred_on">{dateLabel}</Label>
+          <Label htmlFor={`${prefix}-date`}>{dateLabel}</Label>
           <input
-            id="occurred_on"
+            id={`${prefix}-date`}
             name="occurred_on"
             type="date"
             value={startDate}
@@ -303,10 +355,15 @@ export function TransactionForm({
             className={fieldClass}
           />
         </div>
-        {!compact ? (
+        {showExtras ? (
           <div className="space-y-2">
-            <Label htmlFor="payment_method">Pagamento</Label>
-            <select id="payment_method" name="payment_method" className={fieldClass}>
+            <Label htmlFor={`${prefix}-payment`}>Pagamento</Label>
+            <select
+              id={`${prefix}-payment`}
+              name="payment_method"
+              className={fieldClass}
+              defaultValue={transaction?.payment_method ?? ""}
+            >
               <option value="">—</option>
               {PAYMENT_METHODS.map((method) => (
                 <option key={method.value} value={method.value}>
@@ -318,10 +375,18 @@ export function TransactionForm({
         ) : null}
       </div>
 
-      {!compact ? (
+      {showExtras ? (
         <div className="space-y-2">
-          <Label htmlFor="notes">Notas</Label>
-          <input id="notes" name="notes" className={fieldClass} placeholder="Opcional" />
+          <Label htmlFor={`${prefix}-notes`}>Notas</Label>
+          <input
+            id={`${prefix}-notes`}
+            name="notes"
+            className={fieldClass}
+            placeholder="Opcional"
+            defaultValue={
+              transaction ? seriesBaseNotes(transaction.notes) : undefined
+            }
+          />
         </div>
       ) : null}
 

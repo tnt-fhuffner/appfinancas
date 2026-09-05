@@ -4,7 +4,11 @@ import { revalidatePath } from "next/cache"
 import { z } from "zod"
 import { requireUser } from "@/lib/auth/session"
 import { addDaysISO, addMonthsClamped, todayISO } from "@/lib/finance/format"
-import { composeSeriesNotes, seriesBaseNotes } from "@/lib/finance/upcoming"
+import {
+  composeSeriesNotes,
+  seriesBaseNotes,
+  withSeriesNotes,
+} from "@/lib/finance/upcoming"
 import {
   asUuid,
   dbError,
@@ -52,6 +56,29 @@ function refreshFinance() {
   revalidatePath("/viagens")
 }
 
+export async function updateAccount(
+  id: string,
+  input: z.infer<typeof accountSchema>
+) {
+  const accountId = asUuid(id)
+  if (!accountId) return { error: "Pedido inválido." }
+  const parsed = accountSchema.safeParse(input)
+  if (!parsed.success) return zodError(parsed.error)
+  const { supabase } = await requireUser()
+  const { error } = await supabase
+    .from("accounts")
+    .update({
+      name: parsed.data.name,
+      type: parsed.data.type,
+      initial_balance: parsed.data.initial_balance,
+      is_shared: true,
+    })
+    .eq("id", accountId)
+  if (error) return { error: dbError(error.message) }
+  refreshFinance()
+  return { error: null }
+}
+
 export async function createAccount(input: z.infer<typeof accountSchema>) {
   const parsed = accountSchema.safeParse(input)
   if (!parsed.success) return zodError(parsed.error)
@@ -75,6 +102,29 @@ export async function createCategory(input: z.infer<typeof categorySchema>) {
     is_shared: true,
     owner_id: user.id,
   })
+  if (error) return { error: dbError(error.message) }
+  refreshFinance()
+  return { error: null }
+}
+
+export async function updateCategory(
+  id: string,
+  input: z.infer<typeof categorySchema>
+) {
+  const categoryId = asUuid(id)
+  if (!categoryId) return { error: "Pedido inválido." }
+  const parsed = categorySchema.safeParse(input)
+  if (!parsed.success) return zodError(parsed.error)
+  const { supabase } = await requireUser()
+  const { error } = await supabase
+    .from("categories")
+    .update({
+      name: parsed.data.name,
+      kind: parsed.data.kind,
+      color: parsed.data.color,
+      is_shared: true,
+    })
+    .eq("id", categoryId)
   if (error) return { error: dbError(error.message) }
   refreshFinance()
   return { error: null }
@@ -129,6 +179,61 @@ export async function createTransaction(
   if (error) return { error: dbError(error.message) }
   refreshFinance()
   return { error: null, count }
+}
+
+const transactionUpdateSchema = z.object({
+  amount: moneyPositive,
+  type: z.enum(["income", "expense", "transfer"]),
+  account_id: z.string().uuid(),
+  transfer_account_id: z.string().uuid().nullable(),
+  category_id: z.string().uuid().nullable(),
+  occurred_on: isoDate,
+  payment_method: z.string().max(32).nullable(),
+  notes: notesField,
+})
+
+export async function updateTransaction(
+  id: string,
+  input: z.infer<typeof transactionUpdateSchema>
+) {
+  const transactionId = asUuid(id)
+  if (!transactionId) return { error: "Pedido inválido." }
+  const parsed = transactionUpdateSchema.safeParse(input)
+  if (!parsed.success) return zodError(parsed.error)
+  const data = parsed.data
+
+  if (data.type === "transfer" && !data.transfer_account_id) {
+    return { error: "Escolha a conta de destino." }
+  }
+
+  const { supabase } = await requireUser()
+  const { data: current, error: loadError } = await supabase
+    .from("transactions")
+    .select("notes")
+    .eq("id", transactionId)
+    .single()
+
+  if (loadError || !current) return { error: "Lançamento não encontrado." }
+
+  const { error } = await supabase
+    .from("transactions")
+    .update({
+      amount: data.amount,
+      type: data.type,
+      account_id: data.account_id,
+      transfer_account_id:
+        data.type === "transfer" ? data.transfer_account_id : null,
+      category_id: data.type === "transfer" ? null : data.category_id,
+      occurred_on: data.occurred_on,
+      payment_method: data.payment_method,
+      notes: withSeriesNotes(current.notes as string | null, data.notes),
+      is_shared: true,
+    })
+    .eq("id", transactionId)
+
+  if (error) return { error: dbError(error.message) }
+  refreshFinance()
+  return { error: null }
 }
 
 export async function deleteTransaction(id: string) {
@@ -327,6 +432,35 @@ export async function createBill(input: z.infer<typeof billSchema>) {
   if (error) return { error: dbError(error.message) }
   refreshFinance()
   return { error: null, count }
+}
+
+const billUpdateSchema = billSchema.omit({ repeat_count: true })
+
+export async function updateBill(
+  id: string,
+  input: z.infer<typeof billUpdateSchema>
+) {
+  const billId = asUuid(id)
+  if (!billId) return { error: "Pedido inválido." }
+  const parsed = billUpdateSchema.safeParse(input)
+  if (!parsed.success) return zodError(parsed.error)
+  const { supabase } = await requireUser()
+  const { error } = await supabase
+    .from("bills")
+    .update({
+      title: parsed.data.title,
+      amount: parsed.data.amount,
+      kind: parsed.data.kind,
+      due_on: parsed.data.due_on,
+      category_id: parsed.data.category_id,
+      account_id: parsed.data.account_id,
+      notes: parsed.data.notes,
+      is_shared: true,
+    })
+    .eq("id", billId)
+  if (error) return { error: dbError(error.message) }
+  refreshFinance()
+  return { error: null }
 }
 
 export async function deleteBill(id: string) {

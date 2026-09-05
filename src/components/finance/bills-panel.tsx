@@ -13,8 +13,14 @@ import {
 } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
 import { fieldClass } from "@/components/finance/fields"
-import { createBill, deleteBill, payBill } from "@/lib/finance/actions"
-import { formatBRL, formatDay, parseMoneyInput, todayISO } from "@/lib/finance/format"
+import { createBill, deleteBill, payBill, updateBill } from "@/lib/finance/actions"
+import {
+  formatBRL,
+  formatDay,
+  moneyToInput,
+  parseMoneyInput,
+  todayISO,
+} from "@/lib/finance/format"
 import type { Bill, FinanceBootstrap } from "@/lib/finance/types"
 
 export function BillsPanel({ data }: { data: FinanceBootstrap }) {
@@ -36,14 +42,14 @@ export function BillsPanel({ data }: { data: FinanceBootstrap }) {
             <Plus className="size-4" />
             Nova conta
           </DialogTrigger>
-          <DialogContent className="sm:max-w-md">
+          <DialogContent>
             <DialogHeader>
               <DialogTitle>Nova conta</DialogTitle>
             </DialogHeader>
             <BillForm
               accounts={data.accounts}
               categories={data.categories}
-              onCreated={() => setOpen(false)}
+              onSaved={() => setOpen(false)}
             />
           </DialogContent>
         </Dialog>
@@ -54,12 +60,15 @@ export function BillsPanel({ data }: { data: FinanceBootstrap }) {
         empty="Nada pendente. Quando chegar um boleto, lance aqui."
         bills={pending}
         accounts={data.accounts}
+        categories={data.categories}
+        editable
       />
       <BillSection
         title="Pagas"
         empty="Nenhuma conta quitada ainda."
         bills={paid}
         accounts={data.accounts}
+        categories={data.categories}
       />
     </div>
   )
@@ -70,11 +79,15 @@ function BillSection({
   empty,
   bills,
   accounts,
+  categories,
+  editable = false,
 }: {
   title: string
   empty: string
   bills: Bill[]
   accounts: FinanceBootstrap["accounts"]
+  categories: FinanceBootstrap["categories"]
+  editable?: boolean
 }) {
   const accountsById = useMemo(
     () => new Map(accounts.map((account) => [account.id, account.name])),
@@ -99,6 +112,9 @@ function BillSection({
             key={bill.id}
             bill={bill}
             accountName={bill.account_id ? (accountsById.get(bill.account_id) ?? null) : null}
+            accounts={accounts}
+            categories={categories}
+            editable={editable}
           />
         ))}
       </ul>
@@ -106,8 +122,21 @@ function BillSection({
   )
 }
 
-function BillRow({ bill, accountName }: { bill: Bill; accountName: string | null }) {
+function BillRow({
+  bill,
+  accountName,
+  accounts,
+  categories,
+  editable,
+}: {
+  bill: Bill
+  accountName: string | null
+  accounts: FinanceBootstrap["accounts"]
+  categories: FinanceBootstrap["categories"]
+  editable: boolean
+}) {
   const [pending, setPending] = useState(false)
+  const [editOpen, setEditOpen] = useState(false)
   const overdue = bill.status === "pending" && bill.due_on < todayISO()
   const repeat = bill.title.match(/ · (\d+)\/(\d+)$/)
   const title = bill.title.replace(/ · \d+\/\d+$/, "")
@@ -135,6 +164,7 @@ function BillRow({ bill, accountName }: { bill: Bill; accountName: string | null
   }
 
   return (
+    <>
     <li className="flex items-start justify-between gap-3 rounded-2xl bg-card/90 p-4 ring-1 ring-foreground/8">
       <div className="min-w-0">
         <p className="text-sm font-medium">
@@ -166,6 +196,15 @@ function BillRow({ bill, accountName }: { bill: Bill; accountName: string | null
         ) : (
           <span className="text-xs text-emerald-600 dark:text-emerald-400">Quitada</span>
         )}
+        {editable ? (
+          <button
+            type="button"
+            className="text-xs text-muted-foreground hover:text-foreground"
+            onClick={() => setEditOpen(true)}
+          >
+            Editar
+          </button>
+        ) : null}
         <button
           type="button"
           className="text-xs text-muted-foreground hover:text-destructive"
@@ -176,19 +215,37 @@ function BillRow({ bill, accountName }: { bill: Bill; accountName: string | null
         </button>
       </div>
     </li>
+    {editable ? (
+      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Editar conta</DialogTitle>
+          </DialogHeader>
+          <BillForm
+            bill={bill}
+            accounts={accounts}
+            categories={categories}
+            onSaved={() => setEditOpen(false)}
+          />
+        </DialogContent>
+      </Dialog>
+    ) : null}
+    </>
   )
 }
 
 function BillForm({
   accounts,
   categories,
-  onCreated,
+  bill,
+  onSaved,
 }: {
   accounts: FinanceBootstrap["accounts"]
   categories: FinanceBootstrap["categories"]
-  onCreated?: () => void
+  bill?: Bill
+  onSaved?: () => void
 }) {
-  const [kind, setKind] = useState<"payable" | "receivable">("payable")
+  const [kind, setKind] = useState<"payable" | "receivable">(bill?.kind ?? "payable")
   const [repeat, setRepeat] = useState<"once" | "monthly">("once")
   const [months, setMonths] = useState(12)
   const [pending, setPending] = useState(false)
@@ -207,8 +264,7 @@ function BillForm({
       return
     }
 
-    setPending(true)
-    const result = await createBill({
+    const payload = {
       title: String(formData.get("title") ?? ""),
       amount,
       kind,
@@ -219,8 +275,15 @@ function BillForm({
       account_id: String(formData.get("account_id") ?? "") || null,
       is_shared: true,
       notes: String(formData.get("notes") ?? "").trim() || null,
-      repeat_count: repeat === "monthly" ? months : 1,
-    })
+    }
+
+    setPending(true)
+    const result = bill
+      ? await updateBill(bill.id, payload)
+      : await createBill({
+          ...payload,
+          repeat_count: repeat === "monthly" ? months : 1,
+        })
     setPending(false)
 
     if (result.error) {
@@ -228,13 +291,18 @@ function BillForm({
       return
     }
 
-    const createdCount = "count" in result ? result.count : 1
-    toast.success(
-      createdCount && createdCount > 1
-        ? `${createdCount} vencimentos na agenda`
-        : "Conta lançada"
-    )
-    onCreated?.()
+    if (bill) {
+      toast.success("Conta atualizada")
+    } else {
+      const createdCount =
+        "count" in result && typeof result.count === "number" ? result.count : 1
+      toast.success(
+        createdCount && createdCount > 1
+          ? `${createdCount} vencimentos na agenda`
+          : "Conta lançada"
+      )
+    }
+    onSaved?.()
   }
 
   if (accounts.length === 0) {
@@ -275,11 +343,12 @@ function BillForm({
           id="bill-title"
           name="title"
           required
+          defaultValue={bill?.title}
           placeholder={kind === "payable" ? "Aluguel" : "Reembolso"}
           className={fieldClass}
         />
       </div>
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid gap-3 sm:grid-cols-2">
         <div className="space-y-2">
           <Label htmlFor="bill-amount">Valor</Label>
           <input
@@ -288,94 +357,118 @@ function BillForm({
             required
             inputMode="decimal"
             placeholder="0,00"
+            defaultValue={bill ? moneyToInput(bill.amount) : undefined}
             className={fieldClass}
           />
         </div>
         <div className="space-y-2">
           <Label htmlFor="bill-due">
-            {repeat === "monthly" ? "1º vencimento" : "Vencimento"}
+            {!bill && repeat === "monthly" ? "1º vencimento" : "Vencimento"}
           </Label>
           <input
             id="bill-due"
             name="due_on"
             type="date"
-            defaultValue={todayISO()}
+            defaultValue={bill?.due_on ?? todayISO()}
             className={fieldClass}
           />
         </div>
       </div>
-      <div className="space-y-2">
-        <p className="text-sm font-medium">Se repete?</p>
-        <div className="grid grid-cols-2 gap-1 rounded-2xl bg-muted p-1">
-          {(
-            [
-              ["once", "Só esta"],
-              ["monthly", "Todo mês"],
-            ] as const
-          ).map(([value, label]) => (
-            <button
-              key={value}
-              type="button"
-              onClick={() => setRepeat(value)}
-              className={`rounded-xl px-2 py-2 text-xs font-medium ${
-                repeat === value
-                  ? "bg-background text-foreground shadow-sm"
-                  : "text-muted-foreground"
-              }`}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-        {repeat === "monthly" ? (
-          <div className="space-y-2">
-            <Label htmlFor="bill-months">Por quantos meses?</Label>
-            <input
-              id="bill-months"
-              type="number"
-              min={2}
-              max={24}
-              value={months}
-              onChange={(event) => setMonths(Number(event.target.value) || 2)}
-              className={fieldClass}
-            />
-            <p className="text-xs text-muted-foreground">
-              Aluguel, internet, academia — criamos os vencimentos na agenda.
-            </p>
+      {!bill ? (
+        <div className="space-y-2">
+          <p className="text-sm font-medium">Se repete?</p>
+          <div className="grid grid-cols-2 gap-1 rounded-2xl bg-muted p-1">
+            {(
+              [
+                ["once", "Só esta"],
+                ["monthly", "Todo mês"],
+              ] as const
+            ).map(([value, label]) => (
+              <button
+                key={value}
+                type="button"
+                onClick={() => setRepeat(value)}
+                className={`rounded-xl px-2 py-2 text-xs font-medium ${
+                  repeat === value
+                    ? "bg-background text-foreground shadow-sm"
+                    : "text-muted-foreground"
+                }`}
+              >
+                {label}
+              </button>
+            ))}
           </div>
-        ) : null}
-      </div>
-      <div className="space-y-2">
-        <Label htmlFor="bill-account">Conta para quitar</Label>
-        <select id="bill-account" name="account_id" required className={fieldClass}>
-          {accounts.map((account) => (
-            <option key={account.id} value={account.id}>
-              {account.name}
-            </option>
-          ))}
-        </select>
-      </div>
-      <div className="space-y-2">
-        <Label htmlFor="bill-category">Categoria</Label>
-        <select id="bill-category" name="category_id" className={fieldClass}>
-          <option value="">Sem categoria</option>
-          {visibleCategories.map((category) => (
-            <option key={category.id} value={category.id}>
-              {category.name}
-            </option>
-          ))}
-        </select>
+          {repeat === "monthly" ? (
+            <div className="space-y-2">
+              <Label htmlFor="bill-months">Por quantos meses?</Label>
+              <input
+                id="bill-months"
+                type="number"
+                min={2}
+                max={24}
+                value={months}
+                onChange={(event) => setMonths(Number(event.target.value) || 2)}
+                className={fieldClass}
+              />
+              <p className="text-xs text-muted-foreground">
+                Aluguel, internet, academia — criamos os vencimentos na agenda.
+              </p>
+            </div>
+          ) : null}
+        </div>
+      ) : null}
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div className="space-y-2">
+          <Label htmlFor="bill-account">Conta para quitar</Label>
+          <select
+            id="bill-account"
+            name="account_id"
+            required
+            className={fieldClass}
+            defaultValue={bill?.account_id ?? undefined}
+          >
+            {accounts.map((account) => (
+              <option key={account.id} value={account.id}>
+                {account.name}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="bill-category">Categoria</Label>
+          <select
+            id="bill-category"
+            name="category_id"
+            className={fieldClass}
+            defaultValue={bill?.category_id ?? ""}
+          >
+            <option value="">Sem categoria</option>
+            {visibleCategories.map((category) => (
+              <option key={category.id} value={category.id}>
+                {category.name}
+              </option>
+            ))}
+          </select>
+        </div>
       </div>
       <div className="space-y-2">
         <Label htmlFor="bill-notes">Notas</Label>
-        <input id="bill-notes" name="notes" className={fieldClass} placeholder="Opcional" />
+        <input
+          id="bill-notes"
+          name="notes"
+          className={fieldClass}
+          placeholder="Opcional"
+          defaultValue={bill?.notes ?? undefined}
+        />
       </div>
       <Button type="submit" className="h-11 w-full rounded-xl" disabled={pending}>
         {pending
           ? "Salvando..."
-          : repeat === "monthly"
-            ? `Agendar ${months} meses`
-            : "Salvar conta"}
+          : bill
+            ? "Salvar alterações"
+            : repeat === "monthly"
+              ? `Agendar ${months} meses`
+              : "Salvar conta"}
       </Button>
     </form>
   )

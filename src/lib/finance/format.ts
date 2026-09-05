@@ -77,6 +77,13 @@ export function formatDateRange(start: string, end: string) {
   return `${formatDay(start)} — ${formatDay(end)}`
 }
 
+export function moneyToInput(value: number) {
+  return value.toLocaleString("pt-BR", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })
+}
+
 export function parseMoneyInput(value: string) {
   const trimmed = value.trim()
   if (!trimmed) return NaN
