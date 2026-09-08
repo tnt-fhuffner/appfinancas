@@ -1,28 +1,27 @@
-import { ImageResponse } from "next/og"
+import { brandIconImage } from "@/lib/brand-icon"
 
-export const size = { width: 512, height: 512 }
-export const contentType = "image/png"
+export function generateImageMetadata() {
+  return [
+    {
+      id: "32",
+      contentType: "image/png",
+      size: { width: 32, height: 32 },
+    },
+    {
+      id: "192",
+      contentType: "image/png",
+      size: { width: 192, height: 192 },
+    },
+    {
+      id: "512",
+      contentType: "image/png",
+      size: { width: 512, height: 512 },
+    },
+  ]
+}
 
-export default function Icon() {
-  return new ImageResponse(
-    (
-      <div
-        style={{
-          width: "100%",
-          height: "100%",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          background: "#c4785a",
-          color: "#fff8f0",
-          fontSize: 168,
-          fontWeight: 700,
-          letterSpacing: "-4px",
-        }}
-      >
-        nós
-      </div>
-    ),
-    { ...size }
-  )
+export default async function Icon({ id }: { id: Promise<string | number> }) {
+  const iconId = String(await id)
+  const size = Number(iconId) || 32
+  return brandIconImage(size)
 }

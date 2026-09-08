@@ -1,4 +1,5 @@
 import { LoginForm } from "@/components/auth/login-form"
+import { BrandMark } from "@/components/layout/brand-mark"
 import { ThemeToggle } from "@/components/layout/theme-toggle"
 import { isSupabaseConfigured } from "@/lib/supabase/env"
 
@@ -23,9 +24,7 @@ export default function LoginPage() {
       <main className="relative z-10 flex flex-1 flex-col items-center justify-center px-4 pb-16">
         <div className="w-full max-w-sm rounded-3xl bg-card/80 p-6 shadow-xl shadow-primary/5 ring-1 ring-foreground/8 backdrop-blur-sm">
           <div className="mb-8 text-center">
-            <span className="mx-auto mb-4 flex size-12 items-center justify-center rounded-2xl bg-primary text-sm font-semibold text-primary-foreground">
-              nós
-            </span>
+            <BrandMark className="mx-auto mb-4 size-12 rounded-2xl" textClassName="text-sm" />
             <h1 className="font-heading text-3xl tracking-tight">Nós</h1>
             <p className="mt-2 text-sm text-pretty text-muted-foreground">
               O diário financeiro e de sonhos de vocês dois.

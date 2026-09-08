@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils"
 import { isNavActive, primaryNav, settingsNav } from "@/lib/navigation"
 import type { AppUser } from "@/lib/auth/user"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { BrandMark } from "@/components/layout/brand-mark"
 
 export function Sidebar({ user }: { user: AppUser }) {
   const pathname = usePathname()
@@ -14,9 +15,7 @@ export function Sidebar({ user }: { user: AppUser }) {
   return (
     <aside className="relative z-10 sticky top-0 hidden h-dvh w-60 shrink-0 flex-col border-r border-border/70 bg-sidebar px-4 pt-[max(1.5rem,env(safe-area-inset-top))] pb-6 lg:w-64 md:flex">
       <Link href="/" className="mb-8 flex items-center gap-3 px-2">
-        <span className="flex size-9 items-center justify-center rounded-2xl bg-primary text-sm font-semibold text-primary-foreground shadow-sm">
-          nós
-        </span>
+        <BrandMark className="size-9 rounded-2xl" textClassName="text-sm" />
         <span className="flex flex-col">
           <span className="font-heading text-lg leading-none tracking-tight">Nós</span>
           <span className="mt-1 text-xs text-muted-foreground">finanças e sonhos</span>
